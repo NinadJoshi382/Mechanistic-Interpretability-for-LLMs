@@ -1,0 +1,59 @@
+# ==============================================================
+# requirements_nanogpt.txt
+# Python  : 3.11
+# GPU     : NVIDIA A100 80GB PCIe
+# CUDA    : 12.6
+#
+# Covers  :
+#   - karpathy/nanoGPT
+#   - TransformerLensOrg/TransformerLens  v3.x (latest)
+#     (requires transformers >= 5.4.0)
+#
+# ---------------------------------------------------------------
+# INSTALL ORDER — run these commands exactly in this sequence:
+#
+#   1. Activate your venv
+#      venv_nanogpt\Scripts\activate
+#
+#   2. Install PyTorch for CUDA 12.6 FIRST (before everything else)
+#      pip install torch==2.6.0 --index-url https://download.pytorch.org/whl/cu126
+#
+#   3. Install this file
+#      pip install -r requirements_nanogpt.txt
+#
+#   4. Clone nanoGPT — no pip install needed, run scripts directly
+#      git clone https://github.com/karpathy/nanoGPT
+# ==============================================================
+
+
+# --- PyTorch (installed separately in Step 2, listed here for reference) ---
+# torch==2.6.0  <-- do NOT install from here, use the cu126 index URL above
+
+
+# --- NumPy ---
+numpy>=1.24.0,<2.0.0
+
+
+# --- HuggingFace stack ---
+# TransformerLens 3.x requires transformers >= 5.4.0
+transformers>=5.4.0
+tokenizers>=0.21.0
+huggingface_hub>=0.23.2
+datasets>=2.7.1
+accelerate>=0.23.0
+safetensors>=0.5.0
+sentencepiece
+
+
+# --- TransformerLens (latest 3.x, uses TransformerBridge system) ---
+transformer-lens>=3.3.0
+
+
+# --- nanoGPT dependencies ---
+# tiktoken: OpenAI BPE tokenizer used in data/openwebtext/prepare.py
+tiktoken>=0.3.0
+
+
+# --- Shared utilities ---
+tqdm>=4.64.1
+wandb>=0.13.5

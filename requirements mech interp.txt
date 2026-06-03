@@ -1,0 +1,91 @@
+# ==============================================================
+# requirements_mech_interp.txt
+# Python  : 3.11
+# GPU     : NVIDIA A100 80GB PCIe
+# CUDA    : 12.6
+#
+# Covers  :
+#   - LLM-Interp/CLT-Forge
+#   - decoderesearch/circuit-tracer  (pins transformers <=4.56.2)
+#   - TransformerLensOrg/TransformerLens  v2.18.0
+#     (last release compatible with transformers 4.x)
+#
+# ---------------------------------------------------------------
+# INSTALL ORDER — run these commands exactly in this sequence:
+#
+#   1. Activate your venv
+#      venv_mech_interp\Scripts\activate
+#
+#   2. Install PyTorch for CUDA 12.6 FIRST (before everything else)
+#      pip install torch==2.6.0 --index-url https://download.pytorch.org/whl/cu126
+#
+#   3. Install this file
+#      pip install -r requirements_mech_interp.txt
+#
+#   4. Install circuit-tracer from source (not on PyPI)
+#      pip install git+https://github.com/decoderesearch/circuit-tracer
+#
+#   5. Install CLT-Forge from source (not on PyPI)
+#      pip install git+https://github.com/LLM-Interp/CLT-Forge
+#
+#   6. Clone nanoGPT repo separately — it has no install step,
+#      just run its scripts directly inside this venv.
+#      git clone https://github.com/karpathy/nanoGPT
+# ==============================================================
+
+
+# --- PyTorch (installed separately in Step 2, listed here for reference) ---
+# torch==2.6.0  <-- do NOT install from here, use the cu126 index URL above
+
+
+# --- NumPy (pinned below 2.0 for full 4.x stack safety) ---
+numpy>=1.24.0,<2.0.0
+
+
+# --- HuggingFace stack ---
+# transformers pinned to 4.56.2:
+#   - circuit-tracer requires >=4.56.0,<=4.57.3
+#   - 4.57.0 was yanked from PyPI; 4.56.2 is the safe latest in the 4.x branch
+transformers==4.56.2
+tokenizers>=0.21.0
+# huggingface_hub ceiling required by circuit-tracer
+huggingface_hub>=0.23.2,<1.0.0
+datasets>=2.7.1
+accelerate>=0.23.0
+safetensors>=0.5.0
+sentencepiece
+
+
+# --- TransformerLens (pinned to last 2.x release; 3.x requires transformers 5.x) ---
+transformer-lens==2.18.0
+
+# TransformerLens 2.x explicit dependencies
+beartype>=0.14.1
+better-abc>=0.0.3
+einops>=0.6.0
+fancy-einsum>=0.0.3
+jaxtyping>=0.2.11
+pandas>=1.1.5
+protobuf>=3.20.0
+rich>=12.6.0
+# transformers-stream-generator required by TransformerLens 2.x
+transformers-stream-generator>=0.0.5,<0.1
+typeguard>=4.2,<5
+typing-extensions
+
+
+# --- circuit-tracer explicit dependencies ---
+# (installed as a package in Step 4, but pinning key deps here ensures no conflicts)
+einops>=0.8.0
+ipykernel>=6.29.5,<7.0.0
+ipywidgets>=8.1.7
+# nnsight pinned to exact version required by circuit-tracer
+nnsight==0.6.1
+pydantic>=2.0.0
+seaborn>=0.13.2
+
+
+# --- Shared utilities ---
+tqdm>=4.64.1
+wandb>=0.13.5
+tiktoken>=0.3.0
