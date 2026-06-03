@@ -1,0 +1,18 @@
+# Step 1 — PyTorch first
+pip install torch==2.6.0 --index-url https://download.pytorch.org/whl/cu126
+
+# Step 2 — everything else from the file
+pip install -r requirements_mech_interp.txt
+
+# Step 3 — your local repos as editable installs
+pip install -e C:\ML_Projects\repos\circuit-tracer
+pip install -e C:\ML_Projects\repos\CLT-Forge
+
+
+# Step 1 — PyTorch first
+pip install torch==2.6.0 --index-url https://download.pytorch.org/whl/cu126
+
+# Step 2 — everything else from the file
+pip install -r requirements_nanogpt.txt
+
+# nanoGPT needs no install step at all — just run its scripts directly
