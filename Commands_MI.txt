@@ -16,3 +16,102 @@ pip install torch==2.6.0 --index-url https://download.pytorch.org/whl/cu126
 pip install -r requirements_nanogpt.txt
 
 # nanoGPT needs no install step at all — just run its scripts directly
+
+
+
+#####################################
+
+
+# Cell 1: Imports & Config
+import os
+import pickle
+from contextlib import nullcontext
+import torch
+import tiktoken
+from model import GPTConfig, GPT
+
+# ── Configuration ──────────────────────────────────────────────────────────────
+CKPT_PATH   = "out/ckpt.pt"      # path to your checkpoint
+PROMPT      = "Once upon a time" # your prompt here
+N_TOKENS    = 200                # number of new tokens to generate
+TEMPERATURE = 0.8                # <1 = more focused, >1 = more random
+TOP_K       = 200                # top-k sampling (set None to disable)
+DEVICE      = "cuda" if torch.cuda.is_available() else "cpu"
+SEED        = 1337
+
+# Cell 2: Load Model from Checkpoint
+torch.manual_seed(SEED)
+if DEVICE == "cuda":
+    torch.cuda.manual_seed(SEED)
+    torch.backends.cuda.matmul.allow_tf32 = True
+    torch.backends.cudnn.allow_tf32 = True
+
+# dtype & autocast context
+dtype = "bfloat16" if torch.cuda.is_available() and torch.cuda.is_bf16_supported() else "float16"
+ptdtype = {"float32": torch.float32, "bfloat16": torch.bfloat16, "float16": torch.float16}[dtype]
+ctx = nullcontext() if DEVICE == "cpu" else torch.amp.autocast(device_type="cuda", dtype=ptdtype)
+
+# Load checkpoint
+print(f"Loading checkpoint from: {CKPT_PATH}")
+checkpoint = torch.load(CKPT_PATH, map_location=DEVICE)
+
+# Reconstruct model
+gptconf = GPTConfig(**checkpoint["model_args"])
+model   = GPT(gptconf)
+
+# Strip compile prefix if present
+state_dict = checkpoint["model"]
+for k in list(state_dict):
+    if k.startswith("_orig_mod."):
+        state_dict[k[len("_orig_mod."):]] = state_dict.pop(k)
+
+model.load_state_dict(state_dict)
+model.eval()
+model.to(DEVICE)
+print(f"Model loaded  |  params: {sum(p.numel() for p in model.parameters()):,}  |  device: {DEVICE}")
+
+
+# Cell 3: Build Encoder/Decoder
+dataset = checkpoint.get("config", {}).get("dataset", None)
+meta_path = os.path.join("data", dataset, "meta.pkl") if dataset else None
+
+if meta_path and os.path.exists(meta_path):
+    print(f"Using custom vocab from: {meta_path}")
+    with open(meta_path, "rb") as f:
+        meta = pickle.load(f)
+    stoi, itos = meta["stoi"], meta["itos"]
+    encode = lambda s: [stoi[c] for c in s]
+    decode = lambda ids: "".join([itos[i] for i in ids])
+else:
+    print("No meta.pkl found — using GPT-2 BPE tokenizer")
+    enc    = tiktoken.get_encoding("gpt2")
+    encode = lambda s: enc.encode(s, allowed_special={"<|endoftext|>"})
+    decode = lambda ids: enc.decode(ids)
+
+
+
+# Cell 4: Generate
+prompt_ids = encode(PROMPT)
+x = torch.tensor(prompt_ids, dtype=torch.long, device=DEVICE).unsqueeze(0)  # (1, T)
+
+print(f"Prompt : {PROMPT!r}")
+print(f"Tokens : {N_TOKENS} new tokens\n{'─'*60}")
+
+with torch.no_grad():
+    with ctx:
+        output_ids = model.generate(x, N_TOKENS, temperature=TEMPERATURE, top_k=TOP_K)
+
+generated_text = decode(output_ids[0].tolist())
+print(generated_text)
+
+
+
+
+
+
+
+
+
+
+
+
