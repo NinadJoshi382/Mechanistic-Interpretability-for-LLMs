@@ -1,0 +1,4598 @@
+The operation add(a, b) means combining two numbers called a and b to find their total sum.
+
+Here, a is the first number also called the augend. It is the number we start with.
+Here, b is the second number also called the addend. It is the number we add to a.
+The result of add(a, b) is called the sum. It represents the total quantity when a and b are combined.
+
+a and b can each be any integer: positive, negative, or zero.
+A positive integer is greater than zero. Examples: 1, 5, 42, 347.
+A negative integer is less than zero. It is written with a minus sign in front. Examples: -1, -5, -42, -347.
+Zero is neither positive nor negative. Zero written as 0.
+
+Addition is commutative: add(a, b) gives the same result as add(b, a).
+Addition is associative: add(add(a, b), c) gives the same result as add(a, add(b, c)).
+The identity element of addition is 0: add(a, 0) equals a and add(0, a) equals a for any integer a.
+
+When both a and b are positive, we add their digit columns from right to left using carry-over.
+When both a and b are negative, we add their absolute values and attach a negative sign to the result.
+When a and b have opposite signs, we subtract the smaller absolute value from the larger and keep the sign of the number with the larger absolute value.
+When one of a or b is zero, the result is simply the other number.
+
+Each digit position represents a place value.
+The rightmost digit is the ones place with place value 1.
+The second digit from the right is the tens place with place value 10.
+The third digit from the right is the hundreds place with place value 100.
+The fourth digit from the right is the thousands place with place value 1000.
+Each position is 10 times the value of the position to its right.
+
+When the sum of two digits in the same position is 10 or greater we cannot write a two-digit number in a single position. We write only the units digit of the sum in that position and carry the tens digit which is always 1 over to the next higher position. This is called carrying or carry-over.
+
+For example if the ones digits sum to 13 we write 3 in the ones place and carry 1 to the tens place.
+The carried 1 is then added to the sum of the tens digits before the same rule is applied again.
+This process repeats for every digit position until there are no more digits and no remaining carry.
+
+
+def add_unit(a, b):
+    # a is a single digit: 0 <= a <= 9
+    # b is a single digit: 0 <= b <= 9
+    # both a and b are non-negative single digit integers for this function
+    total = a + b
+    # total is the raw sum of the two unit digits
+    units = total % 10
+    # units is the digit we write in the current column which is total mod 10
+    carry = total // 10
+    # carry is 1 if total >= 10 otherwise 0 which is total integer-divided by 10
+    return units, carry
+    # returns a tuple of the digit to write and the carry to pass to the next column
+
+# add_unit(3, 4) gives total=7, units=7, carry=0 so result is (7, 0) with no carry
+# add_unit(7, 5) gives total=12, units=2, carry=1 so result is (2, 1) with carry of 1
+# add_unit(9, 9) gives total=18, units=8, carry=1 so result is (8, 1) with carry of 1
+
+
+def add(a, b):
+    # a is any integer positive negative or zero
+    # b is any integer positive negative or zero
+
+    if a == 0:
+        return b
+        # identity: adding zero to b gives b
+
+    if b == 0:
+        return a
+        # identity: adding zero to a gives a
+
+    if a > 0 and b > 0:
+        # both positive: add digit by digit with carry from right to left
+        result_digits = []
+        carry = 0
+        # carry starts at 0 because there is no carry before the first column
+        while a > 0 or b > 0 or carry > 0:
+            # loop continues as long as there are digits left in a or b or a leftover carry
+            digit_a = a % 10
+            # digit_a is the current rightmost digit of a
+            digit_b = b % 10
+            # digit_b is the current rightmost digit of b
+            column_sum = digit_a + digit_b + carry
+            # column_sum is the total for this column: digit of a plus digit of b plus carry
+            carry = column_sum // 10
+            # new carry is 1 if column_sum >= 10 else 0
+            result_digits.append(column_sum % 10)
+            # write only the units digit of column_sum
+            a = a // 10
+            # remove the rightmost digit of a
+            b = b // 10
+            # remove the rightmost digit of b
+        result_digits.reverse()
+        # result_digits is currently ones-first so reverse to get correct order
+        result = 0
+        for digit in result_digits:
+            result = result * 10 + digit
+        # reconstruct the integer from the list of digits
+        return result
+
+    if a < 0 and b < 0:
+        # both negative: add their absolute values then negate
+        # add(-3, -5) is the same as -(add(3, 5)) which equals -8
+        return -add(-a, -b)
+        # -a and -b are both positive so this recurses into the positive branch above
+
+    if a < 0 and b > 0:
+        # opposite signs: subtract smaller absolute value from larger
+        abs_a = -a
+        # abs_a is the absolute value of a
+        abs_b = b
+        # abs_b is already positive
+        if abs_a == abs_b:
+            return 0
+            # equal magnitudes with opposite signs cancel out to zero
+        if abs_b > abs_a:
+            return subtract(abs_b, abs_a)
+            # b has larger magnitude so result is positive: b minus the magnitude of a
+        else:
+            return -subtract(abs_a, abs_b)
+            # a has larger magnitude so result is negative: negate (magnitude of a minus b)
+
+    if a > 0 and b < 0:
+        # opposite signs: same logic as above but roles of a and b are swapped
+        abs_a = a
+        abs_b = -b
+        if abs_a == abs_b:
+            return 0
+        if abs_a > abs_b:
+            return subtract(abs_a, abs_b)
+        else:
+            return -subtract(abs_b, abs_a)
+
+
+def subtract(larger, smaller):
+    # helper used when adding numbers of opposite signs
+    # larger and smaller are both non-negative integers and larger >= smaller
+    # returns larger minus smaller as a non-negative integer
+    result_digits = []
+    borrow = 0
+    # borrow starts at 0
+    a = larger
+    b = smaller
+    while a > 0 or b > 0:
+        digit_a = a % 10
+        # rightmost digit of larger
+        digit_b = b % 10
+        # rightmost digit of smaller
+        diff = digit_a - digit_b - borrow
+        # diff is the subtraction at this column including any borrow from previous column
+        if diff < 0:
+            diff = diff + 10
+            # if diff is negative we borrow 10 from the next column
+            borrow = 1
+            # record that we borrowed
+        else:
+            borrow = 0
+            # no borrow needed
+        result_digits.append(diff)
+        a = a // 10
+        b = b // 10
+    while result_digits and result_digits[-1] == 0:
+        result_digits.pop()
+        # remove leading zeros from the reversed list
+    if not result_digits:
+        return 0
+    result_digits.reverse()
+    result = 0
+    for digit in result_digits:
+        result = result * 10 + digit
+    return result
+
+
+cal: add(1, 3):
+  a = 1
+  b = 3
+  a > 0 and b > 0 so use digit-by-digit addition with carry
+  carry = 0
+  result_digits = []
+  column 1 ones place
+  digit_a = 1 % 10 = 1
+  digit_b = 3 % 10 = 3
+  column_sum = 1 + 3 + 0 = 4
+  carry = 4 // 10 = 0 so no carry
+  write = 4 % 10 = 4
+  result_digits = [4]
+  a = 1 // 10 = 0 so a is exhausted
+  b = 3 // 10 = 0 so b is exhausted
+  loop ends because a=0 and b=0 and carry=0
+  result_digits reversed = [4]
+  result = 4
+  1 + 3 = 4
+
+cal: add(4, 56):
+  a = 4
+  b = 56
+  a > 0 and b > 0 so use digit-by-digit addition with carry
+  carry = 0
+  result_digits = []
+  column 1 ones place
+  digit_a = 4 % 10 = 4
+  digit_b = 56 % 10 = 6
+  column_sum = 4 + 6 + 0 = 10
+  carry = 10 // 10 = 1 so carry 1 to tens place
+  write = 10 % 10 = 0
+  result_digits = [0]
+  a = 4 // 10 = 0 so a is exhausted
+  b = 56 // 10 = 5
+  column 2 tens place
+  digit_a = 0 % 10 = 0 so a is exhausted and contributes 0
+  digit_b = 5 % 10 = 5
+  column_sum = 0 + 5 + 1 = 6
+  carry = 6 // 10 = 0 so no carry
+  write = 6 % 10 = 6
+  result_digits = [0, 6]
+  a = 0 // 10 = 0
+  b = 5 // 10 = 0 so b is exhausted
+  loop ends because a=0 and b=0 and carry=0
+  result_digits reversed = [6, 0]
+  result = 60
+  4 + 56 = 60
+
+cal: add(7, 5):
+  a = 7
+  b = 5
+  a > 0 and b > 0 so use digit-by-digit addition with carry
+  carry = 0
+  result_digits = []
+  column 1 ones place
+  digit_a = 7 % 10 = 7
+  digit_b = 5 % 10 = 5
+  column_sum = 7 + 5 + 0 = 12
+  carry = 12 // 10 = 1 so carry 1 to tens place
+  write = 12 % 10 = 2
+  result_digits = [2]
+  a = 7 // 10 = 0 so a is exhausted
+  b = 5 // 10 = 0 so b is exhausted
+  column 2 tens place carry is still active
+  digit_a = 0 % 10 = 0 so a is exhausted and contributes 0
+  digit_b = 0 % 10 = 0 so b is exhausted and contributes 0
+  column_sum = 0 + 0 + 1 = 1 only the carry remains
+  carry = 1 // 10 = 0 so no further carry
+  write = 1 % 10 = 1
+  result_digits = [2, 1]
+  loop ends because a=0 and b=0 and carry=0
+  result_digits reversed = [1, 2]
+  result = 12
+  7 + 5 = 12
+
+cal: add(347, 285):
+  a = 347
+  b = 285
+  a > 0 and b > 0 so use digit-by-digit addition with carry
+  carry = 0
+  result_digits = []
+  column 1 ones place
+  digit_a = 347 % 10 = 7
+  digit_b = 285 % 10 = 5
+  column_sum = 7 + 5 + 0 = 12
+  carry = 12 // 10 = 1 so carry 1 to tens place
+  write = 12 % 10 = 2
+  result_digits = [2]
+  a = 347 // 10 = 34
+  b = 285 // 10 = 28
+  column 2 tens place
+  digit_a = 34 % 10 = 4
+  digit_b = 28 % 10 = 8
+  column_sum = 4 + 8 + 1 = 13
+  carry = 13 // 10 = 1 so carry 1 to hundreds place
+  write = 13 % 10 = 3
+  result_digits = [2, 3]
+  a = 34 // 10 = 3
+  b = 28 // 10 = 2
+  column 3 hundreds place
+  digit_a = 3 % 10 = 3
+  digit_b = 2 % 10 = 2
+  column_sum = 3 + 2 + 1 = 6
+  carry = 6 // 10 = 0 so no carry
+  write = 6 % 10 = 6
+  result_digits = [2, 3, 6]
+  a = 3 // 10 = 0 so a is exhausted
+  b = 2 // 10 = 0 so b is exhausted
+  loop ends because a=0 and b=0 and carry=0
+  result_digits reversed = [6, 3, 2]
+  result = 632
+  347 + 285 = 632
+
+cal: add(999, 1):
+  a = 999
+  b = 1
+  a > 0 and b > 0 so use digit-by-digit addition with carry
+  carry = 0
+  result_digits = []
+  column 1 ones place
+  digit_a = 999 % 10 = 9
+  digit_b = 1 % 10 = 1
+  column_sum = 9 + 1 + 0 = 10
+  carry = 10 // 10 = 1 so carry 1 to tens place
+  write = 10 % 10 = 0
+  result_digits = [0]
+  a = 999 // 10 = 99
+  b = 1 // 10 = 0 so b is exhausted
+  column 2 tens place
+  digit_a = 99 % 10 = 9
+  digit_b = 0 % 10 = 0 so b is exhausted and contributes 0
+  column_sum = 9 + 0 + 1 = 10
+  carry = 10 // 10 = 1 so carry 1 to hundreds place
+  write = 10 % 10 = 0
+  result_digits = [0, 0]
+  a = 99 // 10 = 9
+  b = 0 // 10 = 0
+  column 3 hundreds place
+  digit_a = 9 % 10 = 9
+  digit_b = 0 % 10 = 0 so b is exhausted and contributes 0
+  column_sum = 9 + 0 + 1 = 10
+  carry = 10 // 10 = 1 so carry 1 to thousands place
+  write = 10 % 10 = 0
+  result_digits = [0, 0, 0]
+  a = 9 // 10 = 0 so a is exhausted
+  b = 0 // 10 = 0
+  column 4 thousands place carry is still active
+  digit_a = 0 % 10 = 0 so a is exhausted and contributes 0
+  digit_b = 0 % 10 = 0 so b is exhausted and contributes 0
+  column_sum = 0 + 0 + 1 = 1 only the carry remains
+  carry = 1 // 10 = 0 so no further carry
+  write = 1 % 10 = 1
+  result_digits = [0, 0, 0, 1]
+  loop ends because a=0 and b=0 and carry=0
+  result_digits reversed = [1, 0, 0, 0]
+  result = 1000
+  999 + 1 = 1000
+
+cal: add(0, 7):
+  a = 0
+  b = 7
+  a == 0 so return b directly
+  result = 7
+  0 + 7 = 7
+
+cal: add(7, 0):
+  a = 7
+  b = 0
+  b == 0 so return a directly
+  result = 7
+  7 + 0 = 7
+
+cal: add(58, 42):
+  a = 58
+  b = 42
+  a > 0 and b > 0 so use digit-by-digit addition with carry
+  carry = 0
+  result_digits = []
+  column 1 ones place
+  digit_a = 58 % 10 = 8
+  digit_b = 42 % 10 = 2
+  column_sum = 8 + 2 + 0 = 10
+  carry = 10 // 10 = 1 so carry 1 to tens place
+  write = 10 % 10 = 0
+  result_digits = [0]
+  a = 58 // 10 = 5
+  b = 42 // 10 = 4
+  column 2 tens place
+  digit_a = 5 % 10 = 5
+  digit_b = 4 % 10 = 4
+  column_sum = 5 + 4 + 1 = 10
+  carry = 10 // 10 = 1 so carry 1 to hundreds place
+  write = 10 % 10 = 0
+  result_digits = [0, 0]
+  a = 5 // 10 = 0 so a is exhausted
+  b = 4 // 10 = 0 so b is exhausted
+  column 3 hundreds place carry is still active
+  digit_a = 0 % 10 = 0 so a is exhausted and contributes 0
+  digit_b = 0 % 10 = 0 so b is exhausted and contributes 0
+  column_sum = 0 + 0 + 1 = 1 only the carry remains
+  carry = 1 // 10 = 0 so no further carry
+  write = 1 % 10 = 1
+  result_digits = [0, 0, 1]
+  loop ends because a=0 and b=0 and carry=0
+  result_digits reversed = [1, 0, 0]
+  result = 100
+  58 + 42 = 100
+
+cal: add(1234, 5678):
+  a = 1234
+  b = 5678
+  a > 0 and b > 0 so use digit-by-digit addition with carry
+  carry = 0
+  result_digits = []
+  column 1 ones place
+  digit_a = 1234 % 10 = 4
+  digit_b = 5678 % 10 = 8
+  column_sum = 4 + 8 + 0 = 12
+  carry = 12 // 10 = 1 so carry 1 to tens place
+  write = 12 % 10 = 2
+  result_digits = [2]
+  a = 1234 // 10 = 123
+  b = 5678 // 10 = 567
+  column 2 tens place
+  digit_a = 123 % 10 = 3
+  digit_b = 567 % 10 = 7
+  column_sum = 3 + 7 + 1 = 11
+  carry = 11 // 10 = 1 so carry 1 to hundreds place
+  write = 11 % 10 = 1
+  result_digits = [2, 1]
+  a = 123 // 10 = 12
+  b = 567 // 10 = 56
+  column 3 hundreds place
+  digit_a = 12 % 10 = 2
+  digit_b = 56 % 10 = 6
+  column_sum = 2 + 6 + 1 = 9
+  carry = 9 // 10 = 0 so no carry
+  write = 9 % 10 = 9
+  result_digits = [2, 1, 9]
+  a = 12 // 10 = 1
+  b = 56 // 10 = 5
+  column 4 thousands place
+  digit_a = 1 % 10 = 1
+  digit_b = 5 % 10 = 5
+  column_sum = 1 + 5 + 0 = 6
+  carry = 6 // 10 = 0 so no carry
+  write = 6 % 10 = 6
+  result_digits = [2, 1, 9, 6]
+  a = 1 // 10 = 0 so a is exhausted
+  b = 5 // 10 = 0 so b is exhausted
+  loop ends because a=0 and b=0 and carry=0
+  result_digits reversed = [6, 9, 1, 2]
+  result = 6912
+  1234 + 5678 = 6912
+
+cal: add(-3, -5):
+  a = -3
+  b = -5
+  a < 0 and b < 0 so add absolute values then negate
+  abs_a = 3
+  abs_b = 5
+  compute add(3, 5)
+  carry = 0
+  result_digits = []
+  column 1 ones place
+  digit_a = 3 % 10 = 3
+  digit_b = 5 % 10 = 5
+  column_sum = 3 + 5 + 0 = 8
+  carry = 8 // 10 = 0 so no carry
+  write = 8 % 10 = 8
+  result_digits = [8]
+  a = 3 // 10 = 0 so a is exhausted
+  b = 5 // 10 = 0 so b is exhausted
+  loop ends because a=0 and b=0 and carry=0
+  result_digits reversed = [8]
+  add(3, 5) = 8
+  both a and b were negative so negate the result
+  result = -8
+  -3 + -5 = -8
+
+cal: add(-7, -93):
+  a = -7
+  b = -93
+  a < 0 and b < 0 so add absolute values then negate
+  abs_a = 7
+  abs_b = 93
+  compute add(7, 93)
+  carry = 0
+  result_digits = []
+  column 1 ones place
+  digit_a = 7 % 10 = 7
+  digit_b = 93 % 10 = 3
+  column_sum = 7 + 3 + 0 = 10
+  carry = 10 // 10 = 1 so carry 1 to tens place
+  write = 10 % 10 = 0
+  result_digits = [0]
+  a = 7 // 10 = 0 so a is exhausted
+  b = 93 // 10 = 9
+  column 2 tens place
+  digit_a = 0 % 10 = 0 so a is exhausted and contributes 0
+  digit_b = 9 % 10 = 9
+  column_sum = 0 + 9 + 1 = 10
+  carry = 10 // 10 = 1 so carry 1 to hundreds place
+  write = 10 % 10 = 0
+  result_digits = [0, 0]
+  a = 0 // 10 = 0
+  b = 9 // 10 = 0 so b is exhausted
+  column 3 hundreds place carry is still active
+  digit_a = 0 % 10 = 0 so a is exhausted and contributes 0
+  digit_b = 0 % 10 = 0 so b is exhausted and contributes 0
+  column_sum = 0 + 0 + 1 = 1 only the carry remains
+  carry = 1 // 10 = 0 so no further carry
+  write = 1 % 10 = 1
+  result_digits = [0, 0, 1]
+  loop ends because a=0 and b=0 and carry=0
+  result_digits reversed = [1, 0, 0]
+  add(7, 93) = 100
+  both a and b were negative so negate the result
+  result = -100
+  -7 + -93 = -100
+
+cal: add(-5, 3):
+  a = -5
+  b = 3
+  a < 0 and b > 0 so subtract smaller absolute value from larger and keep sign of larger
+  abs_a = 5
+  abs_b = 3
+  abs_a > abs_b so a has larger magnitude and result will be negative
+  compute subtract(5, 3)
+  borrow = 0
+  result_digits = []
+  column 1 ones place
+  digit_a = 5 % 10 = 5
+  digit_b = 3 % 10 = 3
+  diff = 5 - 3 - 0 = 2
+  diff >= 0 so no borrow
+  borrow = 0
+  result_digits = [2]
+  a = 5 // 10 = 0 so a is exhausted
+  b = 3 // 10 = 0 so b is exhausted
+  loop ends
+  result_digits reversed = [2]
+  subtract(5, 3) = 2
+  a had larger magnitude and a was negative so negate
+  result = -2
+  -5 + 3 = -2
+
+cal: add(-3, 5):
+  a = -3
+  b = 5
+  a < 0 and b > 0 so subtract smaller absolute value from larger and keep sign of larger
+  abs_a = 3
+  abs_b = 5
+  abs_b > abs_a so b has larger magnitude and result will be positive
+  compute subtract(5, 3)
+  borrow = 0
+  result_digits = []
+  column 1 ones place
+  digit_a = 5 % 10 = 5
+  digit_b = 3 % 10 = 3
+  diff = 5 - 3 - 0 = 2
+  diff >= 0 so no borrow
+  borrow = 0
+  result_digits = [2]
+  a = 5 // 10 = 0 so a is exhausted
+  b = 3 // 10 = 0 so b is exhausted
+  loop ends
+  result_digits reversed = [2]
+  subtract(5, 3) = 2
+  b had larger magnitude and b was positive so result is positive
+  result = 2
+  -3 + 5 = 2
+
+cal: add(5, -3):
+  a = 5
+  b = -3
+  a > 0 and b < 0 so subtract smaller absolute value from larger and keep sign of larger
+  abs_a = 5
+  abs_b = 3
+  abs_a > abs_b so a has larger magnitude and result will be positive
+  compute subtract(5, 3)
+  borrow = 0
+  result_digits = []
+  column 1 ones place
+  digit_a = 5 % 10 = 5
+  digit_b = 3 % 10 = 3
+  diff = 5 - 3 - 0 = 2
+  diff >= 0 so no borrow
+  borrow = 0
+  result_digits = [2]
+  a = 5 // 10 = 0 so a is exhausted
+  b = 3 // 10 = 0 so b is exhausted
+  loop ends
+  result_digits reversed = [2]
+  subtract(5, 3) = 2
+  a had larger magnitude and a was positive so result is positive
+  result = 2
+  5 + -3 = 2
+
+cal: add(3, -5):
+  a = 3
+  b = -5
+  a > 0 and b < 0 so subtract smaller absolute value from larger and keep sign of larger
+  abs_a = 3
+  abs_b = 5
+  abs_b > abs_a so b has larger magnitude and result will be negative
+  compute subtract(5, 3)
+  borrow = 0
+  result_digits = []
+  column 1 ones place
+  digit_a = 5 % 10 = 5
+  digit_b = 3 % 10 = 3
+  diff = 5 - 3 - 0 = 2
+  diff >= 0 so no borrow
+  borrow = 0
+  result_digits = [2]
+  a = 5 // 10 = 0 so a is exhausted
+  b = 3 // 10 = 0 so b is exhausted
+  loop ends
+  result_digits reversed = [2]
+  subtract(5, 3) = 2
+  b had larger magnitude and b was negative so negate
+  result = -2
+  3 + -5 = -2
+
+cal: add(-4, 4):
+  a = -4
+  b = 4
+  a < 0 and b > 0 so subtract smaller absolute value from larger and keep sign of larger
+  abs_a = 4
+  abs_b = 4
+  abs_a == abs_b so equal magnitudes with opposite signs cancel out
+  result = 0
+  -4 + 4 = 0
+
+cal: add(56, -93):
+  a = 56
+  b = -93
+  a > 0 and b < 0 so subtract smaller absolute value from larger and keep sign of larger
+  abs_a = 56
+  abs_b = 93
+  abs_b > abs_a so b has larger magnitude and result will be negative
+  compute subtract(93, 56)
+  borrow = 0
+  result_digits = []
+  column 1 ones place
+  digit_a = 93 % 10 = 3
+  digit_b = 56 % 10 = 6
+  diff = 3 - 6 - 0 = -3
+  diff < 0 so borrow 10 from tens place
+  diff = -3 + 10 = 7
+  borrow = 1
+  result_digits = [7]
+  a = 93 // 10 = 9
+  b = 56 // 10 = 5
+  column 2 tens place
+  digit_a = 9 % 10 = 9
+  digit_b = 5 % 10 = 5
+  diff = 9 - 5 - 1 = 3 where the -1 is the borrow from column 1
+  diff >= 0 so no borrow
+  borrow = 0
+  result_digits = [7, 3]
+  a = 9 // 10 = 0 so a is exhausted
+  b = 5 // 10 = 0 so b is exhausted
+  loop ends
+  result_digits reversed = [3, 7]
+  subtract(93, 56) = 37
+  b had larger magnitude and b was negative so negate
+  result = -37
+  56 + -93 = -37
+
+cal: add(-100, 64):
+  a = -100
+  b = 64
+  a < 0 and b > 0 so subtract smaller absolute value from larger and keep sign of larger
+  abs_a = 100
+  abs_b = 64
+  abs_a > abs_b so a has larger magnitude and result will be negative
+  compute subtract(100, 64)
+  borrow = 0
+  result_digits = []
+  column 1 ones place
+  digit_a = 100 % 10 = 0
+  digit_b = 64 % 10 = 4
+  diff = 0 - 4 - 0 = -4
+  diff < 0 so borrow 10 from tens place
+  diff = -4 + 10 = 6
+  borrow = 1
+  result_digits = [6]
+  a = 100 // 10 = 10
+  b = 64 // 10 = 6
+  column 2 tens place
+  digit_a = 10 % 10 = 0
+  digit_b = 6 % 10 = 6
+  diff = 0 - 6 - 1 = -7 where the -1 is the borrow from column 1
+  diff < 0 so borrow 10 from hundreds place
+  diff = -7 + 10 = 3
+  borrow = 1
+  result_digits = [6, 3]
+  a = 10 // 10 = 1
+  b = 6 // 10 = 0 so b is exhausted
+  column 3 hundreds place
+  digit_a = 1 % 10 = 1
+  digit_b = 0 % 10 = 0 so b is exhausted and contributes 0
+  diff = 1 - 0 - 1 = 0 where the -1 is the borrow from column 2
+  diff >= 0 so no borrow
+  borrow = 0
+  result_digits = [6, 3, 0]
+  a = 1 // 10 = 0 so a is exhausted
+  b = 0 // 10 = 0
+  loop ends
+  remove leading zeros from reversed list: last element is 0 so remove it
+  result_digits = [6, 3]
+  result_digits reversed = [3, 6]
+  subtract(100, 64) = 36
+  a had larger magnitude and a was negative so negate
+  result = -36
+  -100 + 64 = -36
+
+cal: add(2, 3):
+  a = 2
+  b = 3
+  a > 0 and b > 0 so use digit-by-digit addition with carry
+  carry = 0
+  result_digits = []
+  column 1 ones place
+  digit_a = 2 % 10 = 2
+  digit_b = 3 % 10 = 3
+  column_sum = 2 + 3 + 0 = 5
+  carry = 5 // 10 = 0 so no carry
+  write = 5 % 10 = 5
+  result_digits = [5]
+  a = 2 // 10 = 0 so a is exhausted
+  b = 3 // 10 = 0 so b is exhausted
+  loop ends because a=0 and b=0 and carry=0
+  result_digits reversed = [5]
+  result = 5
+  2 + 3 = 5
+
+cal: add(1, 1):
+  a = 1
+  b = 1
+  a > 0 and b > 0 so use digit-by-digit addition with carry
+  carry = 0
+  result_digits = []
+  column 1 ones place
+  digit_a = 1 % 10 = 1
+  digit_b = 1 % 10 = 1
+  column_sum = 1 + 1 + 0 = 2
+  carry = 2 // 10 = 0 so no carry
+  write = 2 % 10 = 2
+  result_digits = [2]
+  a = 1 // 10 = 0 so a is exhausted
+  b = 1 // 10 = 0 so b is exhausted
+  loop ends because a=0 and b=0 and carry=0
+  result_digits reversed = [2]
+  result = 2
+  1 + 1 = 2
+
+cal: add(5, 4):
+  a = 5
+  b = 4
+  a > 0 and b > 0 so use digit-by-digit addition with carry
+  carry = 0
+  result_digits = []
+  column 1 ones place
+  digit_a = 5 % 10 = 5
+  digit_b = 4 % 10 = 4
+  column_sum = 5 + 4 + 0 = 9
+  carry = 9 // 10 = 0 so no carry
+  write = 9 % 10 = 9
+  result_digits = [9]
+  a = 5 // 10 = 0 so a is exhausted
+  b = 4 // 10 = 0 so b is exhausted
+  loop ends because a=0 and b=0 and carry=0
+  result_digits reversed = [9]
+  result = 9
+  5 + 4 = 9
+
+cal: add(6, 2):
+  a = 6
+  b = 2
+  a > 0 and b > 0 so use digit-by-digit addition with carry
+  carry = 0
+  result_digits = []
+  column 1 ones place
+  digit_a = 6 % 10 = 6
+  digit_b = 2 % 10 = 2
+  column_sum = 6 + 2 + 0 = 8
+  carry = 8 // 10 = 0 so no carry
+  write = 8 % 10 = 8
+  result_digits = [8]
+  a = 6 // 10 = 0 so a is exhausted
+  b = 2 // 10 = 0 so b is exhausted
+  loop ends because a=0 and b=0 and carry=0
+  result_digits reversed = [8]
+  result = 8
+  6 + 2 = 8
+
+cal: add(0, 9):
+  a = 0
+  b = 9
+  a == 0 so return b directly
+  result = 9
+  0 + 9 = 9
+
+cal: add(9, 0):
+  a = 9
+  b = 0
+  b == 0 so return a directly
+  result = 9
+  9 + 0 = 9
+
+cal: add(10, 5):
+  a = 10
+  b = 5
+  a > 0 and b > 0 so use digit-by-digit addition with carry
+  carry = 0
+  result_digits = []
+  column 1 ones place
+  digit_a = 10 % 10 = 0
+  digit_b = 5 % 10 = 5
+  column_sum = 0 + 5 + 0 = 5
+  carry = 5 // 10 = 0 so no carry
+  write = 5 % 10 = 5
+  result_digits = [5]
+  a = 10 // 10 = 1
+  b = 5 // 10 = 0 so b is exhausted
+  column 2 tens place
+  digit_a = 1 % 10 = 1
+  digit_b = 0 % 10 = 0
+  column_sum = 1 + 0 + 0 = 1
+  carry = 1 // 10 = 0 so no carry
+  write = 1 % 10 = 1
+  result_digits = [5, 1]
+  a = 1 // 10 = 0 so a is exhausted
+  b = 0 // 10 = 0
+  loop ends because a=0 and b=0 and carry=0
+  result_digits reversed = [1, 5]
+  result = 15
+  10 + 5 = 15
+
+cal: add(20, 30):
+  a = 20
+  b = 30
+  a > 0 and b > 0 so use digit-by-digit addition with carry
+  carry = 0
+  result_digits = []
+  column 1 ones place
+  digit_a = 20 % 10 = 0
+  digit_b = 30 % 10 = 0
+  column_sum = 0 + 0 + 0 = 0
+  carry = 0 // 10 = 0 so no carry
+  write = 0 % 10 = 0
+  result_digits = [0]
+  a = 20 // 10 = 2
+  b = 30 // 10 = 3
+  column 2 tens place
+  digit_a = 2 % 10 = 2
+  digit_b = 3 % 10 = 3
+  column_sum = 2 + 3 + 0 = 5
+  carry = 5 // 10 = 0 so no carry
+  write = 5 % 10 = 5
+  result_digits = [0, 5]
+  a = 2 // 10 = 0 so a is exhausted
+  b = 3 // 10 = 0 so b is exhausted
+  loop ends because a=0 and b=0 and carry=0
+  result_digits reversed = [5, 0]
+  result = 50
+  20 + 30 = 50
+
+cal: add(11, 11):
+  a = 11
+  b = 11
+  a > 0 and b > 0 so use digit-by-digit addition with carry
+  carry = 0
+  result_digits = []
+  column 1 ones place
+  digit_a = 11 % 10 = 1
+  digit_b = 11 % 10 = 1
+  column_sum = 1 + 1 + 0 = 2
+  carry = 2 // 10 = 0 so no carry
+  write = 2 % 10 = 2
+  result_digits = [2]
+  a = 11 // 10 = 1
+  b = 11 // 10 = 1
+  column 2 tens place
+  digit_a = 1 % 10 = 1
+  digit_b = 1 % 10 = 1
+  column_sum = 1 + 1 + 0 = 2
+  carry = 2 // 10 = 0 so no carry
+  write = 2 % 10 = 2
+  result_digits = [2, 2]
+  a = 1 // 10 = 0 so a is exhausted
+  b = 1 // 10 = 0 so b is exhausted
+  loop ends because a=0 and b=0 and carry=0
+  result_digits reversed = [2, 2]
+  result = 22
+  11 + 11 = 22
+
+cal: add(23, 14):
+  a = 23
+  b = 14
+  a > 0 and b > 0 so use digit-by-digit addition with carry
+  carry = 0
+  result_digits = []
+  column 1 ones place
+  digit_a = 23 % 10 = 3
+  digit_b = 14 % 10 = 4
+  column_sum = 3 + 4 + 0 = 7
+  carry = 7 // 10 = 0 so no carry
+  write = 7 % 10 = 7
+  result_digits = [7]
+  a = 23 // 10 = 2
+  b = 14 // 10 = 1
+  column 2 tens place
+  digit_a = 2 % 10 = 2
+  digit_b = 1 % 10 = 1
+  column_sum = 2 + 1 + 0 = 3
+  carry = 3 // 10 = 0 so no carry
+  write = 3 % 10 = 3
+  result_digits = [7, 3]
+  a = 2 // 10 = 0 so a is exhausted
+  b = 1 // 10 = 0 so b is exhausted
+  loop ends because a=0 and b=0 and carry=0
+  result_digits reversed = [3, 7]
+  result = 37
+  23 + 14 = 37
+
+cal: add(100, 200):
+  a = 100
+  b = 200
+  a > 0 and b > 0 so use digit-by-digit addition with carry
+  carry = 0
+  result_digits = []
+  column 1 ones place
+  digit_a = 100 % 10 = 0
+  digit_b = 200 % 10 = 0
+  column_sum = 0 + 0 + 0 = 0
+  carry = 0 // 10 = 0 so no carry
+  write = 0 % 10 = 0
+  result_digits = [0]
+  a = 100 // 10 = 10
+  b = 200 // 10 = 20
+  column 2 tens place
+  digit_a = 10 % 10 = 0
+  digit_b = 20 % 10 = 0
+  column_sum = 0 + 0 + 0 = 0
+  carry = 0 // 10 = 0 so no carry
+  write = 0 % 10 = 0
+  result_digits = [0, 0]
+  a = 10 // 10 = 1
+  b = 20 // 10 = 2
+  column 3 hundreds place
+  digit_a = 1 % 10 = 1
+  digit_b = 2 % 10 = 2
+  column_sum = 1 + 2 + 0 = 3
+  carry = 3 // 10 = 0 so no carry
+  write = 3 % 10 = 3
+  result_digits = [0, 0, 3]
+  a = 1 // 10 = 0 so a is exhausted
+  b = 2 // 10 = 0 so b is exhausted
+  loop ends because a=0 and b=0 and carry=0
+  result_digits reversed = [3, 0, 0]
+  result = 300
+  100 + 200 = 300
+
+cal: add(111, 222):
+  a = 111
+  b = 222
+  a > 0 and b > 0 so use digit-by-digit addition with carry
+  carry = 0
+  result_digits = []
+  column 1 ones place
+  digit_a = 111 % 10 = 1
+  digit_b = 222 % 10 = 2
+  column_sum = 1 + 2 + 0 = 3
+  carry = 3 // 10 = 0 so no carry
+  write = 3 % 10 = 3
+  result_digits = [3]
+  a = 111 // 10 = 11
+  b = 222 // 10 = 22
+  column 2 tens place
+  digit_a = 11 % 10 = 1
+  digit_b = 22 % 10 = 2
+  column_sum = 1 + 2 + 0 = 3
+  carry = 3 // 10 = 0 so no carry
+  write = 3 % 10 = 3
+  result_digits = [3, 3]
+  a = 11 // 10 = 1
+  b = 22 // 10 = 2
+  column 3 hundreds place
+  digit_a = 1 % 10 = 1
+  digit_b = 2 % 10 = 2
+  column_sum = 1 + 2 + 0 = 3
+  carry = 3 // 10 = 0 so no carry
+  write = 3 % 10 = 3
+  result_digits = [3, 3, 3]
+  a = 1 // 10 = 0 so a is exhausted
+  b = 2 // 10 = 0 so b is exhausted
+  loop ends because a=0 and b=0 and carry=0
+  result_digits reversed = [3, 3, 3]
+  result = 333
+  111 + 222 = 333
+
+cal: add(123, 321):
+  a = 123
+  b = 321
+  a > 0 and b > 0 so use digit-by-digit addition with carry
+  carry = 0
+  result_digits = []
+  column 1 ones place
+  digit_a = 123 % 10 = 3
+  digit_b = 321 % 10 = 1
+  column_sum = 3 + 1 + 0 = 4
+  carry = 4 // 10 = 0 so no carry
+  write = 4 % 10 = 4
+  result_digits = [4]
+  a = 123 // 10 = 12
+  b = 321 // 10 = 32
+  column 2 tens place
+  digit_a = 12 % 10 = 2
+  digit_b = 32 % 10 = 2
+  column_sum = 2 + 2 + 0 = 4
+  carry = 4 // 10 = 0 so no carry
+  write = 4 % 10 = 4
+  result_digits = [4, 4]
+  a = 12 // 10 = 1
+  b = 32 // 10 = 3
+  column 3 hundreds place
+  digit_a = 1 % 10 = 1
+  digit_b = 3 % 10 = 3
+  column_sum = 1 + 3 + 0 = 4
+  carry = 4 // 10 = 0 so no carry
+  write = 4 % 10 = 4
+  result_digits = [4, 4, 4]
+  a = 1 // 10 = 0 so a is exhausted
+  b = 3 // 10 = 0 so b is exhausted
+  loop ends because a=0 and b=0 and carry=0
+  result_digits reversed = [4, 4, 4]
+  result = 444
+  123 + 321 = 444
+
+cal: add(1000, 2000):
+  a = 1000
+  b = 2000
+  a > 0 and b > 0 so use digit-by-digit addition with carry
+  carry = 0
+  result_digits = []
+  column 1 ones place
+  digit_a = 1000 % 10 = 0
+  digit_b = 2000 % 10 = 0
+  column_sum = 0 + 0 + 0 = 0
+  carry = 0 // 10 = 0 so no carry
+  write = 0 % 10 = 0
+  result_digits = [0]
+  a = 1000 // 10 = 100
+  b = 2000 // 10 = 200
+  column 2 tens place
+  digit_a = 100 % 10 = 0
+  digit_b = 200 % 10 = 0
+  column_sum = 0 + 0 + 0 = 0
+  carry = 0 // 10 = 0 so no carry
+  write = 0 % 10 = 0
+  result_digits = [0, 0]
+  a = 100 // 10 = 10
+  b = 200 // 10 = 20
+  column 3 hundreds place
+  digit_a = 10 % 10 = 0
+  digit_b = 20 % 10 = 0
+  column_sum = 0 + 0 + 0 = 0
+  carry = 0 // 10 = 0 so no carry
+  write = 0 % 10 = 0
+  result_digits = [0, 0, 0]
+  a = 10 // 10 = 1
+  b = 20 // 10 = 2
+  column 4 thousands place
+  digit_a = 1 % 10 = 1
+  digit_b = 2 % 10 = 2
+  column_sum = 1 + 2 + 0 = 3
+  carry = 3 // 10 = 0 so no carry
+  write = 3 % 10 = 3
+  result_digits = [0, 0, 0, 3]
+  a = 1 // 10 = 0 so a is exhausted
+  b = 2 // 10 = 0 so b is exhausted
+  loop ends because a=0 and b=0 and carry=0
+  result_digits reversed = [3, 0, 0, 0]
+  result = 3000
+  1000 + 2000 = 3000
+
+cal: add(1001, 1001):
+  a = 1001
+  b = 1001
+  a > 0 and b > 0 so use digit-by-digit addition with carry
+  carry = 0
+  result_digits = []
+  column 1 ones place
+  digit_a = 1001 % 10 = 1
+  digit_b = 1001 % 10 = 1
+  column_sum = 1 + 1 + 0 = 2
+  carry = 2 // 10 = 0 so no carry
+  write = 2 % 10 = 2
+  result_digits = [2]
+  a = 1001 // 10 = 100
+  b = 1001 // 10 = 100
+  column 2 tens place
+  digit_a = 100 % 10 = 0
+  digit_b = 100 % 10 = 0
+  column_sum = 0 + 0 + 0 = 0
+  carry = 0 // 10 = 0 so no carry
+  write = 0 % 10 = 0
+  result_digits = [2, 0]
+  a = 100 // 10 = 10
+  b = 100 // 10 = 10
+  column 3 hundreds place
+  digit_a = 10 % 10 = 0
+  digit_b = 10 % 10 = 0
+  column_sum = 0 + 0 + 0 = 0
+  carry = 0 // 10 = 0 so no carry
+  write = 0 % 10 = 0
+  result_digits = [2, 0, 0]
+  a = 10 // 10 = 1
+  b = 10 // 10 = 1
+  column 4 thousands place
+  digit_a = 1 % 10 = 1
+  digit_b = 1 % 10 = 1
+  column_sum = 1 + 1 + 0 = 2
+  carry = 2 // 10 = 0 so no carry
+  write = 2 % 10 = 2
+  result_digits = [2, 0, 0, 2]
+  a = 1 // 10 = 0 so a is exhausted
+  b = 1 // 10 = 0 so b is exhausted
+  loop ends because a=0 and b=0 and carry=0
+  result_digits reversed = [2, 0, 0, 2]
+  result = 2002
+  1001 + 1001 = 2002
+
+cal: add(7, 5):
+  a = 7
+  b = 5
+  a > 0 and b > 0 so use digit-by-digit addition with carry
+  carry = 0
+  result_digits = []
+  column 1 ones place
+  digit_a = 7 % 10 = 7
+  digit_b = 5 % 10 = 5
+  column_sum = 7 + 5 + 0 = 12
+  carry = 12 // 10 = 1 so carry 1 to tens place
+  write = 12 % 10 = 2
+  result_digits = [2]
+  a = 7 // 10 = 0 so a is exhausted
+  b = 5 // 10 = 0 so b is exhausted
+  column 2 tens place carry is still active
+  column 2 tens place
+  digit_a = 0 % 10 = 0
+  digit_b = 0 % 10 = 0
+  column_sum = 0 + 0 + 1 = 1
+  carry = 1 // 10 = 0 so no carry
+  write = 1 % 10 = 1
+  result_digits = [2, 1]
+  a = 0 // 10 = 0
+  b = 0 // 10 = 0
+  loop ends because a=0 and b=0 and carry=0
+  result_digits reversed = [1, 2]
+  result = 12
+  7 + 5 = 12
+
+cal: add(8, 9):
+  a = 8
+  b = 9
+  a > 0 and b > 0 so use digit-by-digit addition with carry
+  carry = 0
+  result_digits = []
+  column 1 ones place
+  digit_a = 8 % 10 = 8
+  digit_b = 9 % 10 = 9
+  column_sum = 8 + 9 + 0 = 17
+  carry = 17 // 10 = 1 so carry 1 to tens place
+  write = 17 % 10 = 7
+  result_digits = [7]
+  a = 8 // 10 = 0 so a is exhausted
+  b = 9 // 10 = 0 so b is exhausted
+  column 2 tens place carry is still active
+  column 2 tens place
+  digit_a = 0 % 10 = 0
+  digit_b = 0 % 10 = 0
+  column_sum = 0 + 0 + 1 = 1
+  carry = 1 // 10 = 0 so no carry
+  write = 1 % 10 = 1
+  result_digits = [7, 1]
+  a = 0 // 10 = 0
+  b = 0 // 10 = 0
+  loop ends because a=0 and b=0 and carry=0
+  result_digits reversed = [1, 7]
+  result = 17
+  8 + 9 = 17
+
+cal: add(9, 9):
+  a = 9
+  b = 9
+  a > 0 and b > 0 so use digit-by-digit addition with carry
+  carry = 0
+  result_digits = []
+  column 1 ones place
+  digit_a = 9 % 10 = 9
+  digit_b = 9 % 10 = 9
+  column_sum = 9 + 9 + 0 = 18
+  carry = 18 // 10 = 1 so carry 1 to tens place
+  write = 18 % 10 = 8
+  result_digits = [8]
+  a = 9 // 10 = 0 so a is exhausted
+  b = 9 // 10 = 0 so b is exhausted
+  column 2 tens place carry is still active
+  column 2 tens place
+  digit_a = 0 % 10 = 0
+  digit_b = 0 % 10 = 0
+  column_sum = 0 + 0 + 1 = 1
+  carry = 1 // 10 = 0 so no carry
+  write = 1 % 10 = 1
+  result_digits = [8, 1]
+  a = 0 // 10 = 0
+  b = 0 // 10 = 0
+  loop ends because a=0 and b=0 and carry=0
+  result_digits reversed = [1, 8]
+  result = 18
+  9 + 9 = 18
+
+cal: add(15, 17):
+  a = 15
+  b = 17
+  a > 0 and b > 0 so use digit-by-digit addition with carry
+  carry = 0
+  result_digits = []
+  column 1 ones place
+  digit_a = 15 % 10 = 5
+  digit_b = 17 % 10 = 7
+  column_sum = 5 + 7 + 0 = 12
+  carry = 12 // 10 = 1 so carry 1 to tens place
+  write = 12 % 10 = 2
+  result_digits = [2]
+  a = 15 // 10 = 1
+  b = 17 // 10 = 1
+  column 2 tens place
+  digit_a = 1 % 10 = 1
+  digit_b = 1 % 10 = 1
+  column_sum = 1 + 1 + 1 = 3
+  carry = 3 // 10 = 0 so no carry
+  write = 3 % 10 = 3
+  result_digits = [2, 3]
+  a = 1 // 10 = 0 so a is exhausted
+  b = 1 // 10 = 0 so b is exhausted
+  loop ends because a=0 and b=0 and carry=0
+  result_digits reversed = [3, 2]
+  result = 32
+  15 + 17 = 32
+
+cal: add(19, 91):
+  a = 19
+  b = 91
+  a > 0 and b > 0 so use digit-by-digit addition with carry
+  carry = 0
+  result_digits = []
+  column 1 ones place
+  digit_a = 19 % 10 = 9
+  digit_b = 91 % 10 = 1
+  column_sum = 9 + 1 + 0 = 10
+  carry = 10 // 10 = 1 so carry 1 to tens place
+  write = 10 % 10 = 0
+  result_digits = [0]
+  a = 19 // 10 = 1
+  b = 91 // 10 = 9
+  column 2 tens place
+  digit_a = 1 % 10 = 1
+  digit_b = 9 % 10 = 9
+  column_sum = 1 + 9 + 1 = 11
+  carry = 11 // 10 = 1 so carry 1 to hundreds place
+  write = 11 % 10 = 1
+  result_digits = [0, 1]
+  a = 1 // 10 = 0 so a is exhausted
+  b = 9 // 10 = 0 so b is exhausted
+  column 3 hundreds place carry is still active
+  column 3 hundreds place
+  digit_a = 0 % 10 = 0
+  digit_b = 0 % 10 = 0
+  column_sum = 0 + 0 + 1 = 1
+  carry = 1 // 10 = 0 so no carry
+  write = 1 % 10 = 1
+  result_digits = [0, 1, 1]
+  a = 0 // 10 = 0
+  b = 0 // 10 = 0
+  loop ends because a=0 and b=0 and carry=0
+  result_digits reversed = [1, 1, 0]
+  result = 110
+  19 + 91 = 110
+
+cal: add(47, 63):
+  a = 47
+  b = 63
+  a > 0 and b > 0 so use digit-by-digit addition with carry
+  carry = 0
+  result_digits = []
+  column 1 ones place
+  digit_a = 47 % 10 = 7
+  digit_b = 63 % 10 = 3
+  column_sum = 7 + 3 + 0 = 10
+  carry = 10 // 10 = 1 so carry 1 to tens place
+  write = 10 % 10 = 0
+  result_digits = [0]
+  a = 47 // 10 = 4
+  b = 63 // 10 = 6
+  column 2 tens place
+  digit_a = 4 % 10 = 4
+  digit_b = 6 % 10 = 6
+  column_sum = 4 + 6 + 1 = 11
+  carry = 11 // 10 = 1 so carry 1 to hundreds place
+  write = 11 % 10 = 1
+  result_digits = [0, 1]
+  a = 4 // 10 = 0 so a is exhausted
+  b = 6 // 10 = 0 so b is exhausted
+  column 3 hundreds place carry is still active
+  column 3 hundreds place
+  digit_a = 0 % 10 = 0
+  digit_b = 0 % 10 = 0
+  column_sum = 0 + 0 + 1 = 1
+  carry = 1 // 10 = 0 so no carry
+  write = 1 % 10 = 1
+  result_digits = [0, 1, 1]
+  a = 0 // 10 = 0
+  b = 0 // 10 = 0
+  loop ends because a=0 and b=0 and carry=0
+  result_digits reversed = [1, 1, 0]
+  result = 110
+  47 + 63 = 110
+
+cal: add(88, 22):
+  a = 88
+  b = 22
+  a > 0 and b > 0 so use digit-by-digit addition with carry
+  carry = 0
+  result_digits = []
+  column 1 ones place
+  digit_a = 88 % 10 = 8
+  digit_b = 22 % 10 = 2
+  column_sum = 8 + 2 + 0 = 10
+  carry = 10 // 10 = 1 so carry 1 to tens place
+  write = 10 % 10 = 0
+  result_digits = [0]
+  a = 88 // 10 = 8
+  b = 22 // 10 = 2
+  column 2 tens place
+  digit_a = 8 % 10 = 8
+  digit_b = 2 % 10 = 2
+  column_sum = 8 + 2 + 1 = 11
+  carry = 11 // 10 = 1 so carry 1 to hundreds place
+  write = 11 % 10 = 1
+  result_digits = [0, 1]
+  a = 8 // 10 = 0 so a is exhausted
+  b = 2 // 10 = 0 so b is exhausted
+  column 3 hundreds place carry is still active
+  column 3 hundreds place
+  digit_a = 0 % 10 = 0
+  digit_b = 0 % 10 = 0
+  column_sum = 0 + 0 + 1 = 1
+  carry = 1 // 10 = 0 so no carry
+  write = 1 % 10 = 1
+  result_digits = [0, 1, 1]
+  a = 0 // 10 = 0
+  b = 0 // 10 = 0
+  loop ends because a=0 and b=0 and carry=0
+  result_digits reversed = [1, 1, 0]
+  result = 110
+  88 + 22 = 110
+
+cal: add(99, 1):
+  a = 99
+  b = 1
+  a > 0 and b > 0 so use digit-by-digit addition with carry
+  carry = 0
+  result_digits = []
+  column 1 ones place
+  digit_a = 99 % 10 = 9
+  digit_b = 1 % 10 = 1
+  column_sum = 9 + 1 + 0 = 10
+  carry = 10 // 10 = 1 so carry 1 to tens place
+  write = 10 % 10 = 0
+  result_digits = [0]
+  a = 99 // 10 = 9
+  b = 1 // 10 = 0 so b is exhausted
+  column 2 tens place
+  digit_a = 9 % 10 = 9
+  digit_b = 0 % 10 = 0
+  column_sum = 9 + 0 + 1 = 10
+  carry = 10 // 10 = 1 so carry 1 to hundreds place
+  write = 10 % 10 = 0
+  result_digits = [0, 0]
+  a = 9 // 10 = 0 so a is exhausted
+  b = 0 // 10 = 0
+  column 3 hundreds place carry is still active
+  column 3 hundreds place
+  digit_a = 0 % 10 = 0
+  digit_b = 0 % 10 = 0
+  column_sum = 0 + 0 + 1 = 1
+  carry = 1 // 10 = 0 so no carry
+  write = 1 % 10 = 1
+  result_digits = [0, 0, 1]
+  a = 0 // 10 = 0
+  b = 0 // 10 = 0
+  loop ends because a=0 and b=0 and carry=0
+  result_digits reversed = [1, 0, 0]
+  result = 100
+  99 + 1 = 100
+
+cal: add(99, 99):
+  a = 99
+  b = 99
+  a > 0 and b > 0 so use digit-by-digit addition with carry
+  carry = 0
+  result_digits = []
+  column 1 ones place
+  digit_a = 99 % 10 = 9
+  digit_b = 99 % 10 = 9
+  column_sum = 9 + 9 + 0 = 18
+  carry = 18 // 10 = 1 so carry 1 to tens place
+  write = 18 % 10 = 8
+  result_digits = [8]
+  a = 99 // 10 = 9
+  b = 99 // 10 = 9
+  column 2 tens place
+  digit_a = 9 % 10 = 9
+  digit_b = 9 % 10 = 9
+  column_sum = 9 + 9 + 1 = 19
+  carry = 19 // 10 = 1 so carry 1 to hundreds place
+  write = 19 % 10 = 9
+  result_digits = [8, 9]
+  a = 9 // 10 = 0 so a is exhausted
+  b = 9 // 10 = 0 so b is exhausted
+  column 3 hundreds place carry is still active
+  column 3 hundreds place
+  digit_a = 0 % 10 = 0
+  digit_b = 0 % 10 = 0
+  column_sum = 0 + 0 + 1 = 1
+  carry = 1 // 10 = 0 so no carry
+  write = 1 % 10 = 1
+  result_digits = [8, 9, 1]
+  a = 0 // 10 = 0
+  b = 0 // 10 = 0
+  loop ends because a=0 and b=0 and carry=0
+  result_digits reversed = [1, 9, 8]
+  result = 198
+  99 + 99 = 198
+
+cal: add(199, 1):
+  a = 199
+  b = 1
+  a > 0 and b > 0 so use digit-by-digit addition with carry
+  carry = 0
+  result_digits = []
+  column 1 ones place
+  digit_a = 199 % 10 = 9
+  digit_b = 1 % 10 = 1
+  column_sum = 9 + 1 + 0 = 10
+  carry = 10 // 10 = 1 so carry 1 to tens place
+  write = 10 % 10 = 0
+  result_digits = [0]
+  a = 199 // 10 = 19
+  b = 1 // 10 = 0 so b is exhausted
+  column 2 tens place
+  digit_a = 19 % 10 = 9
+  digit_b = 0 % 10 = 0
+  column_sum = 9 + 0 + 1 = 10
+  carry = 10 // 10 = 1 so carry 1 to hundreds place
+  write = 10 % 10 = 0
+  result_digits = [0, 0]
+  a = 19 // 10 = 1
+  b = 0 // 10 = 0
+  column 3 hundreds place
+  digit_a = 1 % 10 = 1
+  digit_b = 0 % 10 = 0
+  column_sum = 1 + 0 + 1 = 2
+  carry = 2 // 10 = 0 so no carry
+  write = 2 % 10 = 2
+  result_digits = [0, 0, 2]
+  a = 1 // 10 = 0 so a is exhausted
+  b = 0 // 10 = 0
+  loop ends because a=0 and b=0 and carry=0
+  result_digits reversed = [2, 0, 0]
+  result = 200
+  199 + 1 = 200
+
+cal: add(347, 285):
+  a = 347
+  b = 285
+  a > 0 and b > 0 so use digit-by-digit addition with carry
+  carry = 0
+  result_digits = []
+  column 1 ones place
+  digit_a = 347 % 10 = 7
+  digit_b = 285 % 10 = 5
+  column_sum = 7 + 5 + 0 = 12
+  carry = 12 // 10 = 1 so carry 1 to tens place
+  write = 12 % 10 = 2
+  result_digits = [2]
+  a = 347 // 10 = 34
+  b = 285 // 10 = 28
+  column 2 tens place
+  digit_a = 34 % 10 = 4
+  digit_b = 28 % 10 = 8
+  column_sum = 4 + 8 + 1 = 13
+  carry = 13 // 10 = 1 so carry 1 to hundreds place
+  write = 13 % 10 = 3
+  result_digits = [2, 3]
+  a = 34 // 10 = 3
+  b = 28 // 10 = 2
+  column 3 hundreds place
+  digit_a = 3 % 10 = 3
+  digit_b = 2 % 10 = 2
+  column_sum = 3 + 2 + 1 = 6
+  carry = 6 // 10 = 0 so no carry
+  write = 6 % 10 = 6
+  result_digits = [2, 3, 6]
+  a = 3 // 10 = 0 so a is exhausted
+  b = 2 // 10 = 0 so b is exhausted
+  loop ends because a=0 and b=0 and carry=0
+  result_digits reversed = [6, 3, 2]
+  result = 632
+  347 + 285 = 632
+
+cal: add(456, 789):
+  a = 456
+  b = 789
+  a > 0 and b > 0 so use digit-by-digit addition with carry
+  carry = 0
+  result_digits = []
+  column 1 ones place
+  digit_a = 456 % 10 = 6
+  digit_b = 789 % 10 = 9
+  column_sum = 6 + 9 + 0 = 15
+  carry = 15 // 10 = 1 so carry 1 to tens place
+  write = 15 % 10 = 5
+  result_digits = [5]
+  a = 456 // 10 = 45
+  b = 789 // 10 = 78
+  column 2 tens place
+  digit_a = 45 % 10 = 5
+  digit_b = 78 % 10 = 8
+  column_sum = 5 + 8 + 1 = 14
+  carry = 14 // 10 = 1 so carry 1 to hundreds place
+  write = 14 % 10 = 4
+  result_digits = [5, 4]
+  a = 45 // 10 = 4
+  b = 78 // 10 = 7
+  column 3 hundreds place
+  digit_a = 4 % 10 = 4
+  digit_b = 7 % 10 = 7
+  column_sum = 4 + 7 + 1 = 12
+  carry = 12 // 10 = 1 so carry 1 to thousands place
+  write = 12 % 10 = 2
+  result_digits = [5, 4, 2]
+  a = 4 // 10 = 0 so a is exhausted
+  b = 7 // 10 = 0 so b is exhausted
+  column 4 thousands place carry is still active
+  column 4 thousands place
+  digit_a = 0 % 10 = 0
+  digit_b = 0 % 10 = 0
+  column_sum = 0 + 0 + 1 = 1
+  carry = 1 // 10 = 0 so no carry
+  write = 1 % 10 = 1
+  result_digits = [5, 4, 2, 1]
+  a = 0 // 10 = 0
+  b = 0 // 10 = 0
+  loop ends because a=0 and b=0 and carry=0
+  result_digits reversed = [1, 2, 4, 5]
+  result = 1245
+  456 + 789 = 1245
+
+cal: add(567, 433):
+  a = 567
+  b = 433
+  a > 0 and b > 0 so use digit-by-digit addition with carry
+  carry = 0
+  result_digits = []
+  column 1 ones place
+  digit_a = 567 % 10 = 7
+  digit_b = 433 % 10 = 3
+  column_sum = 7 + 3 + 0 = 10
+  carry = 10 // 10 = 1 so carry 1 to tens place
+  write = 10 % 10 = 0
+  result_digits = [0]
+  a = 567 // 10 = 56
+  b = 433 // 10 = 43
+  column 2 tens place
+  digit_a = 56 % 10 = 6
+  digit_b = 43 % 10 = 3
+  column_sum = 6 + 3 + 1 = 10
+  carry = 10 // 10 = 1 so carry 1 to hundreds place
+  write = 10 % 10 = 0
+  result_digits = [0, 0]
+  a = 56 // 10 = 5
+  b = 43 // 10 = 4
+  column 3 hundreds place
+  digit_a = 5 % 10 = 5
+  digit_b = 4 % 10 = 4
+  column_sum = 5 + 4 + 1 = 10
+  carry = 10 // 10 = 1 so carry 1 to thousands place
+  write = 10 % 10 = 0
+  result_digits = [0, 0, 0]
+  a = 5 // 10 = 0 so a is exhausted
+  b = 4 // 10 = 0 so b is exhausted
+  column 4 thousands place carry is still active
+  column 4 thousands place
+  digit_a = 0 % 10 = 0
+  digit_b = 0 % 10 = 0
+  column_sum = 0 + 0 + 1 = 1
+  carry = 1 // 10 = 0 so no carry
+  write = 1 % 10 = 1
+  result_digits = [0, 0, 0, 1]
+  a = 0 // 10 = 0
+  b = 0 // 10 = 0
+  loop ends because a=0 and b=0 and carry=0
+  result_digits reversed = [1, 0, 0, 0]
+  result = 1000
+  567 + 433 = 1000
+
+cal: add(999, 1):
+  a = 999
+  b = 1
+  a > 0 and b > 0 so use digit-by-digit addition with carry
+  carry = 0
+  result_digits = []
+  column 1 ones place
+  digit_a = 999 % 10 = 9
+  digit_b = 1 % 10 = 1
+  column_sum = 9 + 1 + 0 = 10
+  carry = 10 // 10 = 1 so carry 1 to tens place
+  write = 10 % 10 = 0
+  result_digits = [0]
+  a = 999 // 10 = 99
+  b = 1 // 10 = 0 so b is exhausted
+  column 2 tens place
+  digit_a = 99 % 10 = 9
+  digit_b = 0 % 10 = 0
+  column_sum = 9 + 0 + 1 = 10
+  carry = 10 // 10 = 1 so carry 1 to hundreds place
+  write = 10 % 10 = 0
+  result_digits = [0, 0]
+  a = 99 // 10 = 9
+  b = 0 // 10 = 0
+  column 3 hundreds place
+  digit_a = 9 % 10 = 9
+  digit_b = 0 % 10 = 0
+  column_sum = 9 + 0 + 1 = 10
+  carry = 10 // 10 = 1 so carry 1 to thousands place
+  write = 10 % 10 = 0
+  result_digits = [0, 0, 0]
+  a = 9 // 10 = 0 so a is exhausted
+  b = 0 // 10 = 0
+  column 4 thousands place carry is still active
+  column 4 thousands place
+  digit_a = 0 % 10 = 0
+  digit_b = 0 % 10 = 0
+  column_sum = 0 + 0 + 1 = 1
+  carry = 1 // 10 = 0 so no carry
+  write = 1 % 10 = 1
+  result_digits = [0, 0, 0, 1]
+  a = 0 // 10 = 0
+  b = 0 // 10 = 0
+  loop ends because a=0 and b=0 and carry=0
+  result_digits reversed = [1, 0, 0, 0]
+  result = 1000
+  999 + 1 = 1000
+
+cal: add(999, 999):
+  a = 999
+  b = 999
+  a > 0 and b > 0 so use digit-by-digit addition with carry
+  carry = 0
+  result_digits = []
+  column 1 ones place
+  digit_a = 999 % 10 = 9
+  digit_b = 999 % 10 = 9
+  column_sum = 9 + 9 + 0 = 18
+  carry = 18 // 10 = 1 so carry 1 to tens place
+  write = 18 % 10 = 8
+  result_digits = [8]
+  a = 999 // 10 = 99
+  b = 999 // 10 = 99
+  column 2 tens place
+  digit_a = 99 % 10 = 9
+  digit_b = 99 % 10 = 9
+  column_sum = 9 + 9 + 1 = 19
+  carry = 19 // 10 = 1 so carry 1 to hundreds place
+  write = 19 % 10 = 9
+  result_digits = [8, 9]
+  a = 99 // 10 = 9
+  b = 99 // 10 = 9
+  column 3 hundreds place
+  digit_a = 9 % 10 = 9
+  digit_b = 9 % 10 = 9
+  column_sum = 9 + 9 + 1 = 19
+  carry = 19 // 10 = 1 so carry 1 to thousands place
+  write = 19 % 10 = 9
+  result_digits = [8, 9, 9]
+  a = 9 // 10 = 0 so a is exhausted
+  b = 9 // 10 = 0 so b is exhausted
+  column 4 thousands place carry is still active
+  column 4 thousands place
+  digit_a = 0 % 10 = 0
+  digit_b = 0 % 10 = 0
+  column_sum = 0 + 0 + 1 = 1
+  carry = 1 // 10 = 0 so no carry
+  write = 1 % 10 = 1
+  result_digits = [8, 9, 9, 1]
+  a = 0 // 10 = 0
+  b = 0 // 10 = 0
+  loop ends because a=0 and b=0 and carry=0
+  result_digits reversed = [1, 9, 9, 8]
+  result = 1998
+  999 + 999 = 1998
+
+cal: add(1234, 5678):
+  a = 1234
+  b = 5678
+  a > 0 and b > 0 so use digit-by-digit addition with carry
+  carry = 0
+  result_digits = []
+  column 1 ones place
+  digit_a = 1234 % 10 = 4
+  digit_b = 5678 % 10 = 8
+  column_sum = 4 + 8 + 0 = 12
+  carry = 12 // 10 = 1 so carry 1 to tens place
+  write = 12 % 10 = 2
+  result_digits = [2]
+  a = 1234 // 10 = 123
+  b = 5678 // 10 = 567
+  column 2 tens place
+  digit_a = 123 % 10 = 3
+  digit_b = 567 % 10 = 7
+  column_sum = 3 + 7 + 1 = 11
+  carry = 11 // 10 = 1 so carry 1 to hundreds place
+  write = 11 % 10 = 1
+  result_digits = [2, 1]
+  a = 123 // 10 = 12
+  b = 567 // 10 = 56
+  column 3 hundreds place
+  digit_a = 12 % 10 = 2
+  digit_b = 56 % 10 = 6
+  column_sum = 2 + 6 + 1 = 9
+  carry = 9 // 10 = 0 so no carry
+  write = 9 % 10 = 9
+  result_digits = [2, 1, 9]
+  a = 12 // 10 = 1
+  b = 56 // 10 = 5
+  column 4 thousands place
+  digit_a = 1 % 10 = 1
+  digit_b = 5 % 10 = 5
+  column_sum = 1 + 5 + 0 = 6
+  carry = 6 // 10 = 0 so no carry
+  write = 6 % 10 = 6
+  result_digits = [2, 1, 9, 6]
+  a = 1 // 10 = 0 so a is exhausted
+  b = 5 // 10 = 0 so b is exhausted
+  loop ends because a=0 and b=0 and carry=0
+  result_digits reversed = [6, 9, 1, 2]
+  result = 6912
+  1234 + 5678 = 6912
+
+cal: add(9999, 1):
+  a = 9999
+  b = 1
+  a > 0 and b > 0 so use digit-by-digit addition with carry
+  carry = 0
+  result_digits = []
+  column 1 ones place
+  digit_a = 9999 % 10 = 9
+  digit_b = 1 % 10 = 1
+  column_sum = 9 + 1 + 0 = 10
+  carry = 10 // 10 = 1 so carry 1 to tens place
+  write = 10 % 10 = 0
+  result_digits = [0]
+  a = 9999 // 10 = 999
+  b = 1 // 10 = 0 so b is exhausted
+  column 2 tens place
+  digit_a = 999 % 10 = 9
+  digit_b = 0 % 10 = 0
+  column_sum = 9 + 0 + 1 = 10
+  carry = 10 // 10 = 1 so carry 1 to hundreds place
+  write = 10 % 10 = 0
+  result_digits = [0, 0]
+  a = 999 // 10 = 99
+  b = 0 // 10 = 0
+  column 3 hundreds place
+  digit_a = 99 % 10 = 9
+  digit_b = 0 % 10 = 0
+  column_sum = 9 + 0 + 1 = 10
+  carry = 10 // 10 = 1 so carry 1 to thousands place
+  write = 10 % 10 = 0
+  result_digits = [0, 0, 0]
+  a = 99 // 10 = 9
+  b = 0 // 10 = 0
+  column 4 thousands place
+  digit_a = 9 % 10 = 9
+  digit_b = 0 % 10 = 0
+  column_sum = 9 + 0 + 1 = 10
+  carry = 10 // 10 = 1 so carry 1 to ten-thousands place
+  write = 10 % 10 = 0
+  result_digits = [0, 0, 0, 0]
+  a = 9 // 10 = 0 so a is exhausted
+  b = 0 // 10 = 0
+  column 5 ten-thousands place carry is still active
+  column 5 ten-thousands place
+  digit_a = 0 % 10 = 0
+  digit_b = 0 % 10 = 0
+  column_sum = 0 + 0 + 1 = 1
+  carry = 1 // 10 = 0 so no carry
+  write = 1 % 10 = 1
+  result_digits = [0, 0, 0, 0, 1]
+  a = 0 // 10 = 0
+  b = 0 // 10 = 0
+  loop ends because a=0 and b=0 and carry=0
+  result_digits reversed = [1, 0, 0, 0, 0]
+  result = 10000
+  9999 + 1 = 10000
+
+cal: add(4567, 5433):
+  a = 4567
+  b = 5433
+  a > 0 and b > 0 so use digit-by-digit addition with carry
+  carry = 0
+  result_digits = []
+  column 1 ones place
+  digit_a = 4567 % 10 = 7
+  digit_b = 5433 % 10 = 3
+  column_sum = 7 + 3 + 0 = 10
+  carry = 10 // 10 = 1 so carry 1 to tens place
+  write = 10 % 10 = 0
+  result_digits = [0]
+  a = 4567 // 10 = 456
+  b = 5433 // 10 = 543
+  column 2 tens place
+  digit_a = 456 % 10 = 6
+  digit_b = 543 % 10 = 3
+  column_sum = 6 + 3 + 1 = 10
+  carry = 10 // 10 = 1 so carry 1 to hundreds place
+  write = 10 % 10 = 0
+  result_digits = [0, 0]
+  a = 456 // 10 = 45
+  b = 543 // 10 = 54
+  column 3 hundreds place
+  digit_a = 45 % 10 = 5
+  digit_b = 54 % 10 = 4
+  column_sum = 5 + 4 + 1 = 10
+  carry = 10 // 10 = 1 so carry 1 to thousands place
+  write = 10 % 10 = 0
+  result_digits = [0, 0, 0]
+  a = 45 // 10 = 4
+  b = 54 // 10 = 5
+  column 4 thousands place
+  digit_a = 4 % 10 = 4
+  digit_b = 5 % 10 = 5
+  column_sum = 4 + 5 + 1 = 10
+  carry = 10 // 10 = 1 so carry 1 to ten-thousands place
+  write = 10 % 10 = 0
+  result_digits = [0, 0, 0, 0]
+  a = 4 // 10 = 0 so a is exhausted
+  b = 5 // 10 = 0 so b is exhausted
+  column 5 ten-thousands place carry is still active
+  column 5 ten-thousands place
+  digit_a = 0 % 10 = 0
+  digit_b = 0 % 10 = 0
+  column_sum = 0 + 0 + 1 = 1
+  carry = 1 // 10 = 0 so no carry
+  write = 1 % 10 = 1
+  result_digits = [0, 0, 0, 0, 1]
+  a = 0 // 10 = 0
+  b = 0 // 10 = 0
+  loop ends because a=0 and b=0 and carry=0
+  result_digits reversed = [1, 0, 0, 0, 0]
+  result = 10000
+  4567 + 5433 = 10000
+
+cal: add(12345, 67890):
+  a = 12345
+  b = 67890
+  a > 0 and b > 0 so use digit-by-digit addition with carry
+  carry = 0
+  result_digits = []
+  column 1 ones place
+  digit_a = 12345 % 10 = 5
+  digit_b = 67890 % 10 = 0
+  column_sum = 5 + 0 + 0 = 5
+  carry = 5 // 10 = 0 so no carry
+  write = 5 % 10 = 5
+  result_digits = [5]
+  a = 12345 // 10 = 1234
+  b = 67890 // 10 = 6789
+  column 2 tens place
+  digit_a = 1234 % 10 = 4
+  digit_b = 6789 % 10 = 9
+  column_sum = 4 + 9 + 0 = 13
+  carry = 13 // 10 = 1 so carry 1 to hundreds place
+  write = 13 % 10 = 3
+  result_digits = [5, 3]
+  a = 1234 // 10 = 123
+  b = 6789 // 10 = 678
+  column 3 hundreds place
+  digit_a = 123 % 10 = 3
+  digit_b = 678 % 10 = 8
+  column_sum = 3 + 8 + 1 = 12
+  carry = 12 // 10 = 1 so carry 1 to thousands place
+  write = 12 % 10 = 2
+  result_digits = [5, 3, 2]
+  a = 123 // 10 = 12
+  b = 678 // 10 = 67
+  column 4 thousands place
+  digit_a = 12 % 10 = 2
+  digit_b = 67 % 10 = 7
+  column_sum = 2 + 7 + 1 = 10
+  carry = 10 // 10 = 1 so carry 1 to ten-thousands place
+  write = 10 % 10 = 0
+  result_digits = [5, 3, 2, 0]
+  a = 12 // 10 = 1
+  b = 67 // 10 = 6
+  column 5 ten-thousands place
+  digit_a = 1 % 10 = 1
+  digit_b = 6 % 10 = 6
+  column_sum = 1 + 6 + 1 = 8
+  carry = 8 // 10 = 0 so no carry
+  write = 8 % 10 = 8
+  result_digits = [5, 3, 2, 0, 8]
+  a = 1 // 10 = 0 so a is exhausted
+  b = 6 // 10 = 0 so b is exhausted
+  loop ends because a=0 and b=0 and carry=0
+  result_digits reversed = [8, 0, 2, 3, 5]
+  result = 80235
+  12345 + 67890 = 80235
+
+cal: add(99999, 1):
+  a = 99999
+  b = 1
+  a > 0 and b > 0 so use digit-by-digit addition with carry
+  carry = 0
+  result_digits = []
+  column 1 ones place
+  digit_a = 99999 % 10 = 9
+  digit_b = 1 % 10 = 1
+  column_sum = 9 + 1 + 0 = 10
+  carry = 10 // 10 = 1 so carry 1 to tens place
+  write = 10 % 10 = 0
+  result_digits = [0]
+  a = 99999 // 10 = 9999
+  b = 1 // 10 = 0 so b is exhausted
+  column 2 tens place
+  digit_a = 9999 % 10 = 9
+  digit_b = 0 % 10 = 0
+  column_sum = 9 + 0 + 1 = 10
+  carry = 10 // 10 = 1 so carry 1 to hundreds place
+  write = 10 % 10 = 0
+  result_digits = [0, 0]
+  a = 9999 // 10 = 999
+  b = 0 // 10 = 0
+  column 3 hundreds place
+  digit_a = 999 % 10 = 9
+  digit_b = 0 % 10 = 0
+  column_sum = 9 + 0 + 1 = 10
+  carry = 10 // 10 = 1 so carry 1 to thousands place
+  write = 10 % 10 = 0
+  result_digits = [0, 0, 0]
+  a = 999 // 10 = 99
+  b = 0 // 10 = 0
+  column 4 thousands place
+  digit_a = 99 % 10 = 9
+  digit_b = 0 % 10 = 0
+  column_sum = 9 + 0 + 1 = 10
+  carry = 10 // 10 = 1 so carry 1 to ten-thousands place
+  write = 10 % 10 = 0
+  result_digits = [0, 0, 0, 0]
+  a = 99 // 10 = 9
+  b = 0 // 10 = 0
+  column 5 ten-thousands place
+  digit_a = 9 % 10 = 9
+  digit_b = 0 % 10 = 0
+  column_sum = 9 + 0 + 1 = 10
+  carry = 10 // 10 = 1 so carry 1 to hundred-thousands place
+  write = 10 % 10 = 0
+  result_digits = [0, 0, 0, 0, 0]
+  a = 9 // 10 = 0 so a is exhausted
+  b = 0 // 10 = 0
+  column 6 hundred-thousands place carry is still active
+  column 6 hundred-thousands place
+  digit_a = 0 % 10 = 0
+  digit_b = 0 % 10 = 0
+  column_sum = 0 + 0 + 1 = 1
+  carry = 1 // 10 = 0 so no carry
+  write = 1 % 10 = 1
+  result_digits = [0, 0, 0, 0, 0, 1]
+  a = 0 // 10 = 0
+  b = 0 // 10 = 0
+  loop ends because a=0 and b=0 and carry=0
+  result_digits reversed = [1, 0, 0, 0, 0, 0]
+  result = 100000
+  99999 + 1 = 100000
+
+cal: add(100000, 900000):
+  a = 100000
+  b = 900000
+  a > 0 and b > 0 so use digit-by-digit addition with carry
+  carry = 0
+  result_digits = []
+  column 1 ones place
+  digit_a = 100000 % 10 = 0
+  digit_b = 900000 % 10 = 0
+  column_sum = 0 + 0 + 0 = 0
+  carry = 0 // 10 = 0 so no carry
+  write = 0 % 10 = 0
+  result_digits = [0]
+  a = 100000 // 10 = 10000
+  b = 900000 // 10 = 90000
+  column 2 tens place
+  digit_a = 10000 % 10 = 0
+  digit_b = 90000 % 10 = 0
+  column_sum = 0 + 0 + 0 = 0
+  carry = 0 // 10 = 0 so no carry
+  write = 0 % 10 = 0
+  result_digits = [0, 0]
+  a = 10000 // 10 = 1000
+  b = 90000 // 10 = 9000
+  column 3 hundreds place
+  digit_a = 1000 % 10 = 0
+  digit_b = 9000 % 10 = 0
+  column_sum = 0 + 0 + 0 = 0
+  carry = 0 // 10 = 0 so no carry
+  write = 0 % 10 = 0
+  result_digits = [0, 0, 0]
+  a = 1000 // 10 = 100
+  b = 9000 // 10 = 900
+  column 4 thousands place
+  digit_a = 100 % 10 = 0
+  digit_b = 900 % 10 = 0
+  column_sum = 0 + 0 + 0 = 0
+  carry = 0 // 10 = 0 so no carry
+  write = 0 % 10 = 0
+  result_digits = [0, 0, 0, 0]
+  a = 100 // 10 = 10
+  b = 900 // 10 = 90
+  column 5 ten-thousands place
+  digit_a = 10 % 10 = 0
+  digit_b = 90 % 10 = 0
+  column_sum = 0 + 0 + 0 = 0
+  carry = 0 // 10 = 0 so no carry
+  write = 0 % 10 = 0
+  result_digits = [0, 0, 0, 0, 0]
+  a = 10 // 10 = 1
+  b = 90 // 10 = 9
+  column 6 hundred-thousands place
+  digit_a = 1 % 10 = 1
+  digit_b = 9 % 10 = 9
+  column_sum = 1 + 9 + 0 = 10
+  carry = 10 // 10 = 1 so carry 1 to column 7 place
+  write = 10 % 10 = 0
+  result_digits = [0, 0, 0, 0, 0, 0]
+  a = 1 // 10 = 0 so a is exhausted
+  b = 9 // 10 = 0 so b is exhausted
+  column 7 next place carry is still active
+  column 7 column 7 place
+  digit_a = 0 % 10 = 0
+  digit_b = 0 % 10 = 0
+  column_sum = 0 + 0 + 1 = 1
+  carry = 1 // 10 = 0 so no carry
+  write = 1 % 10 = 1
+  result_digits = [0, 0, 0, 0, 0, 0, 1]
+  a = 0 // 10 = 0
+  b = 0 // 10 = 0
+  loop ends because a=0 and b=0 and carry=0
+  result_digits reversed = [1, 0, 0, 0, 0, 0, 0]
+  result = 1000000
+  100000 + 900000 = 1000000
+
+cal: add(-1, -1):
+  a = -1
+  b = -1
+  a < 0 and b < 0 so add absolute values then negate
+  abs_a = 1
+  abs_b = 1
+  compute add(1, 1)
+  column 1 ones place
+  digit_a = 1 % 10 = 1
+  digit_b = 1 % 10 = 1
+  column_sum = 1 + 1 + 0 = 2
+  carry = 2 // 10 = 0 so no carry
+  write = 2 % 10 = 2
+  result_digits = [2]
+  a = 1 // 10 = 0 so a is exhausted
+  b = 1 // 10 = 0 so b is exhausted
+  loop ends because a=0 and b=0 and carry=0
+  result_digits reversed = [2]
+  add(1, 1) = 2
+  both a and b were negative so negate the result
+  result = -2
+  -1 + -1 = -2
+
+cal: add(-3, -5):
+  a = -3
+  b = -5
+  a < 0 and b < 0 so add absolute values then negate
+  abs_a = 3
+  abs_b = 5
+  compute add(3, 5)
+  column 1 ones place
+  digit_a = 3 % 10 = 3
+  digit_b = 5 % 10 = 5
+  column_sum = 3 + 5 + 0 = 8
+  carry = 8 // 10 = 0 so no carry
+  write = 8 % 10 = 8
+  result_digits = [8]
+  a = 3 // 10 = 0 so a is exhausted
+  b = 5 // 10 = 0 so b is exhausted
+  loop ends because a=0 and b=0 and carry=0
+  result_digits reversed = [8]
+  add(3, 5) = 8
+  both a and b were negative so negate the result
+  result = -8
+  -3 + -5 = -8
+
+cal: add(-7, -2):
+  a = -7
+  b = -2
+  a < 0 and b < 0 so add absolute values then negate
+  abs_a = 7
+  abs_b = 2
+  compute add(7, 2)
+  column 1 ones place
+  digit_a = 7 % 10 = 7
+  digit_b = 2 % 10 = 2
+  column_sum = 7 + 2 + 0 = 9
+  carry = 9 // 10 = 0 so no carry
+  write = 9 % 10 = 9
+  result_digits = [9]
+  a = 7 // 10 = 0 so a is exhausted
+  b = 2 // 10 = 0 so b is exhausted
+  loop ends because a=0 and b=0 and carry=0
+  result_digits reversed = [9]
+  add(7, 2) = 9
+  both a and b were negative so negate the result
+  result = -9
+  -7 + -2 = -9
+
+cal: add(-9, -9):
+  a = -9
+  b = -9
+  a < 0 and b < 0 so add absolute values then negate
+  abs_a = 9
+  abs_b = 9
+  compute add(9, 9)
+  column 1 ones place
+  digit_a = 9 % 10 = 9
+  digit_b = 9 % 10 = 9
+  column_sum = 9 + 9 + 0 = 18
+  carry = 18 // 10 = 1 so carry 1 to tens place
+  write = 18 % 10 = 8
+  result_digits = [8]
+  a = 9 // 10 = 0 so a is exhausted
+  b = 9 // 10 = 0 so b is exhausted
+  column 2 tens place carry is still active
+  column 2 tens place
+  digit_a = 0 % 10 = 0
+  digit_b = 0 % 10 = 0
+  column_sum = 0 + 0 + 1 = 1
+  carry = 1 // 10 = 0 so no carry
+  write = 1 % 10 = 1
+  result_digits = [8, 1]
+  a = 0 // 10 = 0
+  b = 0 // 10 = 0
+  loop ends because a=0 and b=0 and carry=0
+  result_digits reversed = [1, 8]
+  add(9, 9) = 18
+  both a and b were negative so negate the result
+  result = -18
+  -9 + -9 = -18
+
+cal: add(-10, -20):
+  a = -10
+  b = -20
+  a < 0 and b < 0 so add absolute values then negate
+  abs_a = 10
+  abs_b = 20
+  compute add(10, 20)
+  column 1 ones place
+  digit_a = 10 % 10 = 0
+  digit_b = 20 % 10 = 0
+  column_sum = 0 + 0 + 0 = 0
+  carry = 0 // 10 = 0 so no carry
+  write = 0 % 10 = 0
+  result_digits = [0]
+  a = 10 // 10 = 1
+  b = 20 // 10 = 2
+  column 2 tens place
+  digit_a = 1 % 10 = 1
+  digit_b = 2 % 10 = 2
+  column_sum = 1 + 2 + 0 = 3
+  carry = 3 // 10 = 0 so no carry
+  write = 3 % 10 = 3
+  result_digits = [0, 3]
+  a = 1 // 10 = 0 so a is exhausted
+  b = 2 // 10 = 0 so b is exhausted
+  loop ends because a=0 and b=0 and carry=0
+  result_digits reversed = [3, 0]
+  add(10, 20) = 30
+  both a and b were negative so negate the result
+  result = -30
+  -10 + -20 = -30
+
+cal: add(-15, -17):
+  a = -15
+  b = -17
+  a < 0 and b < 0 so add absolute values then negate
+  abs_a = 15
+  abs_b = 17
+  compute add(15, 17)
+  column 1 ones place
+  digit_a = 15 % 10 = 5
+  digit_b = 17 % 10 = 7
+  column_sum = 5 + 7 + 0 = 12
+  carry = 12 // 10 = 1 so carry 1 to tens place
+  write = 12 % 10 = 2
+  result_digits = [2]
+  a = 15 // 10 = 1
+  b = 17 // 10 = 1
+  column 2 tens place
+  digit_a = 1 % 10 = 1
+  digit_b = 1 % 10 = 1
+  column_sum = 1 + 1 + 1 = 3
+  carry = 3 // 10 = 0 so no carry
+  write = 3 % 10 = 3
+  result_digits = [2, 3]
+  a = 1 // 10 = 0 so a is exhausted
+  b = 1 // 10 = 0 so b is exhausted
+  loop ends because a=0 and b=0 and carry=0
+  result_digits reversed = [3, 2]
+  add(15, 17) = 32
+  both a and b were negative so negate the result
+  result = -32
+  -15 + -17 = -32
+
+cal: add(-47, -53):
+  a = -47
+  b = -53
+  a < 0 and b < 0 so add absolute values then negate
+  abs_a = 47
+  abs_b = 53
+  compute add(47, 53)
+  column 1 ones place
+  digit_a = 47 % 10 = 7
+  digit_b = 53 % 10 = 3
+  column_sum = 7 + 3 + 0 = 10
+  carry = 10 // 10 = 1 so carry 1 to tens place
+  write = 10 % 10 = 0
+  result_digits = [0]
+  a = 47 // 10 = 4
+  b = 53 // 10 = 5
+  column 2 tens place
+  digit_a = 4 % 10 = 4
+  digit_b = 5 % 10 = 5
+  column_sum = 4 + 5 + 1 = 10
+  carry = 10 // 10 = 1 so carry 1 to hundreds place
+  write = 10 % 10 = 0
+  result_digits = [0, 0]
+  a = 4 // 10 = 0 so a is exhausted
+  b = 5 // 10 = 0 so b is exhausted
+  column 3 hundreds place carry is still active
+  column 3 hundreds place
+  digit_a = 0 % 10 = 0
+  digit_b = 0 % 10 = 0
+  column_sum = 0 + 0 + 1 = 1
+  carry = 1 // 10 = 0 so no carry
+  write = 1 % 10 = 1
+  result_digits = [0, 0, 1]
+  a = 0 // 10 = 0
+  b = 0 // 10 = 0
+  loop ends because a=0 and b=0 and carry=0
+  result_digits reversed = [1, 0, 0]
+  add(47, 53) = 100
+  both a and b were negative so negate the result
+  result = -100
+  -47 + -53 = -100
+
+cal: add(-7, -93):
+  a = -7
+  b = -93
+  a < 0 and b < 0 so add absolute values then negate
+  abs_a = 7
+  abs_b = 93
+  compute add(7, 93)
+  column 1 ones place
+  digit_a = 7 % 10 = 7
+  digit_b = 93 % 10 = 3
+  column_sum = 7 + 3 + 0 = 10
+  carry = 10 // 10 = 1 so carry 1 to tens place
+  write = 10 % 10 = 0
+  result_digits = [0]
+  a = 7 // 10 = 0 so a is exhausted
+  b = 93 // 10 = 9
+  column 2 tens place
+  digit_a = 0 % 10 = 0
+  digit_b = 9 % 10 = 9
+  column_sum = 0 + 9 + 1 = 10
+  carry = 10 // 10 = 1 so carry 1 to hundreds place
+  write = 10 % 10 = 0
+  result_digits = [0, 0]
+  a = 0 // 10 = 0
+  b = 9 // 10 = 0 so b is exhausted
+  column 3 hundreds place carry is still active
+  column 3 hundreds place
+  digit_a = 0 % 10 = 0
+  digit_b = 0 % 10 = 0
+  column_sum = 0 + 0 + 1 = 1
+  carry = 1 // 10 = 0 so no carry
+  write = 1 % 10 = 1
+  result_digits = [0, 0, 1]
+  a = 0 // 10 = 0
+  b = 0 // 10 = 0
+  loop ends because a=0 and b=0 and carry=0
+  result_digits reversed = [1, 0, 0]
+  add(7, 93) = 100
+  both a and b were negative so negate the result
+  result = -100
+  -7 + -93 = -100
+
+cal: add(-99, -1):
+  a = -99
+  b = -1
+  a < 0 and b < 0 so add absolute values then negate
+  abs_a = 99
+  abs_b = 1
+  compute add(99, 1)
+  column 1 ones place
+  digit_a = 99 % 10 = 9
+  digit_b = 1 % 10 = 1
+  column_sum = 9 + 1 + 0 = 10
+  carry = 10 // 10 = 1 so carry 1 to tens place
+  write = 10 % 10 = 0
+  result_digits = [0]
+  a = 99 // 10 = 9
+  b = 1 // 10 = 0 so b is exhausted
+  column 2 tens place
+  digit_a = 9 % 10 = 9
+  digit_b = 0 % 10 = 0
+  column_sum = 9 + 0 + 1 = 10
+  carry = 10 // 10 = 1 so carry 1 to hundreds place
+  write = 10 % 10 = 0
+  result_digits = [0, 0]
+  a = 9 // 10 = 0 so a is exhausted
+  b = 0 // 10 = 0
+  column 3 hundreds place carry is still active
+  column 3 hundreds place
+  digit_a = 0 % 10 = 0
+  digit_b = 0 % 10 = 0
+  column_sum = 0 + 0 + 1 = 1
+  carry = 1 // 10 = 0 so no carry
+  write = 1 % 10 = 1
+  result_digits = [0, 0, 1]
+  a = 0 // 10 = 0
+  b = 0 // 10 = 0
+  loop ends because a=0 and b=0 and carry=0
+  result_digits reversed = [1, 0, 0]
+  add(99, 1) = 100
+  both a and b were negative so negate the result
+  result = -100
+  -99 + -1 = -100
+
+cal: add(-99, -99):
+  a = -99
+  b = -99
+  a < 0 and b < 0 so add absolute values then negate
+  abs_a = 99
+  abs_b = 99
+  compute add(99, 99)
+  column 1 ones place
+  digit_a = 99 % 10 = 9
+  digit_b = 99 % 10 = 9
+  column_sum = 9 + 9 + 0 = 18
+  carry = 18 // 10 = 1 so carry 1 to tens place
+  write = 18 % 10 = 8
+  result_digits = [8]
+  a = 99 // 10 = 9
+  b = 99 // 10 = 9
+  column 2 tens place
+  digit_a = 9 % 10 = 9
+  digit_b = 9 % 10 = 9
+  column_sum = 9 + 9 + 1 = 19
+  carry = 19 // 10 = 1 so carry 1 to hundreds place
+  write = 19 % 10 = 9
+  result_digits = [8, 9]
+  a = 9 // 10 = 0 so a is exhausted
+  b = 9 // 10 = 0 so b is exhausted
+  column 3 hundreds place carry is still active
+  column 3 hundreds place
+  digit_a = 0 % 10 = 0
+  digit_b = 0 % 10 = 0
+  column_sum = 0 + 0 + 1 = 1
+  carry = 1 // 10 = 0 so no carry
+  write = 1 % 10 = 1
+  result_digits = [8, 9, 1]
+  a = 0 // 10 = 0
+  b = 0 // 10 = 0
+  loop ends because a=0 and b=0 and carry=0
+  result_digits reversed = [1, 9, 8]
+  add(99, 99) = 198
+  both a and b were negative so negate the result
+  result = -198
+  -99 + -99 = -198
+
+cal: add(-100, -200):
+  a = -100
+  b = -200
+  a < 0 and b < 0 so add absolute values then negate
+  abs_a = 100
+  abs_b = 200
+  compute add(100, 200)
+  column 1 ones place
+  digit_a = 100 % 10 = 0
+  digit_b = 200 % 10 = 0
+  column_sum = 0 + 0 + 0 = 0
+  carry = 0 // 10 = 0 so no carry
+  write = 0 % 10 = 0
+  result_digits = [0]
+  a = 100 // 10 = 10
+  b = 200 // 10 = 20
+  column 2 tens place
+  digit_a = 10 % 10 = 0
+  digit_b = 20 % 10 = 0
+  column_sum = 0 + 0 + 0 = 0
+  carry = 0 // 10 = 0 so no carry
+  write = 0 % 10 = 0
+  result_digits = [0, 0]
+  a = 10 // 10 = 1
+  b = 20 // 10 = 2
+  column 3 hundreds place
+  digit_a = 1 % 10 = 1
+  digit_b = 2 % 10 = 2
+  column_sum = 1 + 2 + 0 = 3
+  carry = 3 // 10 = 0 so no carry
+  write = 3 % 10 = 3
+  result_digits = [0, 0, 3]
+  a = 1 // 10 = 0 so a is exhausted
+  b = 2 // 10 = 0 so b is exhausted
+  loop ends because a=0 and b=0 and carry=0
+  result_digits reversed = [3, 0, 0]
+  add(100, 200) = 300
+  both a and b were negative so negate the result
+  result = -300
+  -100 + -200 = -300
+
+cal: add(-347, -285):
+  a = -347
+  b = -285
+  a < 0 and b < 0 so add absolute values then negate
+  abs_a = 347
+  abs_b = 285
+  compute add(347, 285)
+  column 1 ones place
+  digit_a = 347 % 10 = 7
+  digit_b = 285 % 10 = 5
+  column_sum = 7 + 5 + 0 = 12
+  carry = 12 // 10 = 1 so carry 1 to tens place
+  write = 12 % 10 = 2
+  result_digits = [2]
+  a = 347 // 10 = 34
+  b = 285 // 10 = 28
+  column 2 tens place
+  digit_a = 34 % 10 = 4
+  digit_b = 28 % 10 = 8
+  column_sum = 4 + 8 + 1 = 13
+  carry = 13 // 10 = 1 so carry 1 to hundreds place
+  write = 13 % 10 = 3
+  result_digits = [2, 3]
+  a = 34 // 10 = 3
+  b = 28 // 10 = 2
+  column 3 hundreds place
+  digit_a = 3 % 10 = 3
+  digit_b = 2 % 10 = 2
+  column_sum = 3 + 2 + 1 = 6
+  carry = 6 // 10 = 0 so no carry
+  write = 6 % 10 = 6
+  result_digits = [2, 3, 6]
+  a = 3 // 10 = 0 so a is exhausted
+  b = 2 // 10 = 0 so b is exhausted
+  loop ends because a=0 and b=0 and carry=0
+  result_digits reversed = [6, 3, 2]
+  add(347, 285) = 632
+  both a and b were negative so negate the result
+  result = -632
+  -347 + -285 = -632
+
+cal: add(-999, -1):
+  a = -999
+  b = -1
+  a < 0 and b < 0 so add absolute values then negate
+  abs_a = 999
+  abs_b = 1
+  compute add(999, 1)
+  column 1 ones place
+  digit_a = 999 % 10 = 9
+  digit_b = 1 % 10 = 1
+  column_sum = 9 + 1 + 0 = 10
+  carry = 10 // 10 = 1 so carry 1 to tens place
+  write = 10 % 10 = 0
+  result_digits = [0]
+  a = 999 // 10 = 99
+  b = 1 // 10 = 0 so b is exhausted
+  column 2 tens place
+  digit_a = 99 % 10 = 9
+  digit_b = 0 % 10 = 0
+  column_sum = 9 + 0 + 1 = 10
+  carry = 10 // 10 = 1 so carry 1 to hundreds place
+  write = 10 % 10 = 0
+  result_digits = [0, 0]
+  a = 99 // 10 = 9
+  b = 0 // 10 = 0
+  column 3 hundreds place
+  digit_a = 9 % 10 = 9
+  digit_b = 0 % 10 = 0
+  column_sum = 9 + 0 + 1 = 10
+  carry = 10 // 10 = 1 so carry 1 to thousands place
+  write = 10 % 10 = 0
+  result_digits = [0, 0, 0]
+  a = 9 // 10 = 0 so a is exhausted
+  b = 0 // 10 = 0
+  column 4 thousands place carry is still active
+  column 4 thousands place
+  digit_a = 0 % 10 = 0
+  digit_b = 0 % 10 = 0
+  column_sum = 0 + 0 + 1 = 1
+  carry = 1 // 10 = 0 so no carry
+  write = 1 % 10 = 1
+  result_digits = [0, 0, 0, 1]
+  a = 0 // 10 = 0
+  b = 0 // 10 = 0
+  loop ends because a=0 and b=0 and carry=0
+  result_digits reversed = [1, 0, 0, 0]
+  add(999, 1) = 1000
+  both a and b were negative so negate the result
+  result = -1000
+  -999 + -1 = -1000
+
+cal: add(-1234, -5678):
+  a = -1234
+  b = -5678
+  a < 0 and b < 0 so add absolute values then negate
+  abs_a = 1234
+  abs_b = 5678
+  compute add(1234, 5678)
+  column 1 ones place
+  digit_a = 1234 % 10 = 4
+  digit_b = 5678 % 10 = 8
+  column_sum = 4 + 8 + 0 = 12
+  carry = 12 // 10 = 1 so carry 1 to tens place
+  write = 12 % 10 = 2
+  result_digits = [2]
+  a = 1234 // 10 = 123
+  b = 5678 // 10 = 567
+  column 2 tens place
+  digit_a = 123 % 10 = 3
+  digit_b = 567 % 10 = 7
+  column_sum = 3 + 7 + 1 = 11
+  carry = 11 // 10 = 1 so carry 1 to hundreds place
+  write = 11 % 10 = 1
+  result_digits = [2, 1]
+  a = 123 // 10 = 12
+  b = 567 // 10 = 56
+  column 3 hundreds place
+  digit_a = 12 % 10 = 2
+  digit_b = 56 % 10 = 6
+  column_sum = 2 + 6 + 1 = 9
+  carry = 9 // 10 = 0 so no carry
+  write = 9 % 10 = 9
+  result_digits = [2, 1, 9]
+  a = 12 // 10 = 1
+  b = 56 // 10 = 5
+  column 4 thousands place
+  digit_a = 1 % 10 = 1
+  digit_b = 5 % 10 = 5
+  column_sum = 1 + 5 + 0 = 6
+  carry = 6 // 10 = 0 so no carry
+  write = 6 % 10 = 6
+  result_digits = [2, 1, 9, 6]
+  a = 1 // 10 = 0 so a is exhausted
+  b = 5 // 10 = 0 so b is exhausted
+  loop ends because a=0 and b=0 and carry=0
+  result_digits reversed = [6, 9, 1, 2]
+  add(1234, 5678) = 6912
+  both a and b were negative so negate the result
+  result = -6912
+  -1234 + -5678 = -6912
+
+cal: add(-3, 5):
+  a = -3
+  b = 5
+  a < 0 and b > 0 so subtract smaller absolute value from larger and keep sign of larger
+  abs_a = 3
+  abs_b = 5
+  abs_b > abs_a so b has larger magnitude and result will be positive
+  compute subtract(5, 3)
+  borrow = 0
+  result_digits = []
+  column 1 ones place
+  digit_a = 5 % 10 = 5
+  digit_b = 3 % 10 = 3
+  diff = 5 - 3 - 0 = 2
+  diff >= 0 so no borrow
+  borrow = 0
+  result_digits = [2]
+  a = 5 // 10 = 0 so a is exhausted
+  b = 3 // 10 = 0 so b is exhausted
+  loop ends
+  result_digits reversed = [2]
+  subtract(5, 3) = 2
+  b had larger magnitude and b was positive so result is positive
+  result = 2
+  -3 + 5 = 2
+
+cal: add(-1, 9):
+  a = -1
+  b = 9
+  a < 0 and b > 0 so subtract smaller absolute value from larger and keep sign of larger
+  abs_a = 1
+  abs_b = 9
+  abs_b > abs_a so b has larger magnitude and result will be positive
+  compute subtract(9, 1)
+  borrow = 0
+  result_digits = []
+  column 1 ones place
+  digit_a = 9 % 10 = 9
+  digit_b = 1 % 10 = 1
+  diff = 9 - 1 - 0 = 8
+  diff >= 0 so no borrow
+  borrow = 0
+  result_digits = [8]
+  a = 9 // 10 = 0 so a is exhausted
+  b = 1 // 10 = 0 so b is exhausted
+  loop ends
+  result_digits reversed = [8]
+  subtract(9, 1) = 8
+  b had larger magnitude and b was positive so result is positive
+  result = 8
+  -1 + 9 = 8
+
+cal: add(-10, 50):
+  a = -10
+  b = 50
+  a < 0 and b > 0 so subtract smaller absolute value from larger and keep sign of larger
+  abs_a = 10
+  abs_b = 50
+  abs_b > abs_a so b has larger magnitude and result will be positive
+  compute subtract(50, 10)
+  borrow = 0
+  result_digits = []
+  column 1 ones place
+  digit_a = 50 % 10 = 0
+  digit_b = 10 % 10 = 0
+  diff = 0 - 0 - 0 = 0
+  diff >= 0 so no borrow
+  borrow = 0
+  result_digits = [0]
+  a = 50 // 10 = 5
+  b = 10 // 10 = 1
+  column 2 tens place
+  digit_a = 5 % 10 = 5
+  digit_b = 1 % 10 = 1
+  diff = 5 - 1 - 0 = 4
+  diff >= 0 so no borrow
+  borrow = 0
+  result_digits = [0, 4]
+  a = 5 // 10 = 0 so a is exhausted
+  b = 1 // 10 = 0 so b is exhausted
+  loop ends
+  result_digits reversed = [4, 0]
+  subtract(50, 10) = 40
+  b had larger magnitude and b was positive so result is positive
+  result = 40
+  -10 + 50 = 40
+
+cal: add(-47, 100):
+  a = -47
+  b = 100
+  a < 0 and b > 0 so subtract smaller absolute value from larger and keep sign of larger
+  abs_a = 47
+  abs_b = 100
+  abs_b > abs_a so b has larger magnitude and result will be positive
+  compute subtract(100, 47)
+  borrow = 0
+  result_digits = []
+  column 1 ones place
+  digit_a = 100 % 10 = 0
+  digit_b = 47 % 10 = 7
+  diff = 0 - 7 - 0 = -7
+  diff < 0 so borrow 10 from tens place
+  diff = -7 + 10 = 3
+  borrow = 1
+  result_digits = [3]
+  a = 100 // 10 = 10
+  b = 47 // 10 = 4
+  column 2 tens place
+  digit_a = 10 % 10 = 0
+  digit_b = 4 % 10 = 4
+  diff = 0 - 4 - 1 = -5 where the -1 is the borrow from column 1
+  diff < 0 so borrow 10 from hundreds place
+  diff = -5 + 10 = 5
+  borrow = 1
+  result_digits = [3, 5]
+  a = 10 // 10 = 1
+  b = 4 // 10 = 0 so b is exhausted
+  column 3 hundreds place
+  digit_a = 1 % 10 = 1
+  digit_b = 0 % 10 = 0
+  diff = 1 - 0 - 1 = 0 where the -1 is the borrow from column 2
+  diff >= 0 so no borrow
+  borrow = 0
+  result_digits = [3, 5, 0]
+  a = 1 // 10 = 0 so a is exhausted
+  b = 0 // 10 = 0
+  loop ends
+  result_digits reversed = [5, 3]
+  subtract(100, 47) = 53
+  b had larger magnitude and b was positive so result is positive
+  result = 53
+  -47 + 100 = 53
+
+cal: add(-99, 200):
+  a = -99
+  b = 200
+  a < 0 and b > 0 so subtract smaller absolute value from larger and keep sign of larger
+  abs_a = 99
+  abs_b = 200
+  abs_b > abs_a so b has larger magnitude and result will be positive
+  compute subtract(200, 99)
+  borrow = 0
+  result_digits = []
+  column 1 ones place
+  digit_a = 200 % 10 = 0
+  digit_b = 99 % 10 = 9
+  diff = 0 - 9 - 0 = -9
+  diff < 0 so borrow 10 from tens place
+  diff = -9 + 10 = 1
+  borrow = 1
+  result_digits = [1]
+  a = 200 // 10 = 20
+  b = 99 // 10 = 9
+  column 2 tens place
+  digit_a = 20 % 10 = 0
+  digit_b = 9 % 10 = 9
+  diff = 0 - 9 - 1 = -10 where the -1 is the borrow from column 1
+  diff < 0 so borrow 10 from hundreds place
+  diff = -10 + 10 = 0
+  borrow = 1
+  result_digits = [1, 0]
+  a = 20 // 10 = 2
+  b = 9 // 10 = 0 so b is exhausted
+  column 3 hundreds place
+  digit_a = 2 % 10 = 2
+  digit_b = 0 % 10 = 0
+  diff = 2 - 0 - 1 = 1 where the -1 is the borrow from column 2
+  diff >= 0 so no borrow
+  borrow = 0
+  result_digits = [1, 0, 1]
+  a = 2 // 10 = 0 so a is exhausted
+  b = 0 // 10 = 0
+  loop ends
+  result_digits reversed = [1, 0, 1]
+  subtract(200, 99) = 101
+  b had larger magnitude and b was positive so result is positive
+  result = 101
+  -99 + 200 = 101
+
+cal: add(-285, 347):
+  a = -285
+  b = 347
+  a < 0 and b > 0 so subtract smaller absolute value from larger and keep sign of larger
+  abs_a = 285
+  abs_b = 347
+  abs_b > abs_a so b has larger magnitude and result will be positive
+  compute subtract(347, 285)
+  borrow = 0
+  result_digits = []
+  column 1 ones place
+  digit_a = 347 % 10 = 7
+  digit_b = 285 % 10 = 5
+  diff = 7 - 5 - 0 = 2
+  diff >= 0 so no borrow
+  borrow = 0
+  result_digits = [2]
+  a = 347 // 10 = 34
+  b = 285 // 10 = 28
+  column 2 tens place
+  digit_a = 34 % 10 = 4
+  digit_b = 28 % 10 = 8
+  diff = 4 - 8 - 0 = -4
+  diff < 0 so borrow 10 from hundreds place
+  diff = -4 + 10 = 6
+  borrow = 1
+  result_digits = [2, 6]
+  a = 34 // 10 = 3
+  b = 28 // 10 = 2
+  column 3 hundreds place
+  digit_a = 3 % 10 = 3
+  digit_b = 2 % 10 = 2
+  diff = 3 - 2 - 1 = 0 where the -1 is the borrow from column 2
+  diff >= 0 so no borrow
+  borrow = 0
+  result_digits = [2, 6, 0]
+  a = 3 // 10 = 0 so a is exhausted
+  b = 2 // 10 = 0 so b is exhausted
+  loop ends
+  result_digits reversed = [6, 2]
+  subtract(347, 285) = 62
+  b had larger magnitude and b was positive so result is positive
+  result = 62
+  -285 + 347 = 62
+
+cal: add(-500, 501):
+  a = -500
+  b = 501
+  a < 0 and b > 0 so subtract smaller absolute value from larger and keep sign of larger
+  abs_a = 500
+  abs_b = 501
+  abs_b > abs_a so b has larger magnitude and result will be positive
+  compute subtract(501, 500)
+  borrow = 0
+  result_digits = []
+  column 1 ones place
+  digit_a = 501 % 10 = 1
+  digit_b = 500 % 10 = 0
+  diff = 1 - 0 - 0 = 1
+  diff >= 0 so no borrow
+  borrow = 0
+  result_digits = [1]
+  a = 501 // 10 = 50
+  b = 500 // 10 = 50
+  column 2 tens place
+  digit_a = 50 % 10 = 0
+  digit_b = 50 % 10 = 0
+  diff = 0 - 0 - 0 = 0
+  diff >= 0 so no borrow
+  borrow = 0
+  result_digits = [1, 0]
+  a = 50 // 10 = 5
+  b = 50 // 10 = 5
+  column 3 hundreds place
+  digit_a = 5 % 10 = 5
+  digit_b = 5 % 10 = 5
+  diff = 5 - 5 - 0 = 0
+  diff >= 0 so no borrow
+  borrow = 0
+  result_digits = [1, 0, 0]
+  a = 5 // 10 = 0 so a is exhausted
+  b = 5 // 10 = 0 so b is exhausted
+  loop ends
+  result_digits reversed = [1]
+  subtract(501, 500) = 1
+  b had larger magnitude and b was positive so result is positive
+  result = 1
+  -500 + 501 = 1
+
+cal: add(-999, 1000):
+  a = -999
+  b = 1000
+  a < 0 and b > 0 so subtract smaller absolute value from larger and keep sign of larger
+  abs_a = 999
+  abs_b = 1000
+  abs_b > abs_a so b has larger magnitude and result will be positive
+  compute subtract(1000, 999)
+  borrow = 0
+  result_digits = []
+  column 1 ones place
+  digit_a = 1000 % 10 = 0
+  digit_b = 999 % 10 = 9
+  diff = 0 - 9 - 0 = -9
+  diff < 0 so borrow 10 from tens place
+  diff = -9 + 10 = 1
+  borrow = 1
+  result_digits = [1]
+  a = 1000 // 10 = 100
+  b = 999 // 10 = 99
+  column 2 tens place
+  digit_a = 100 % 10 = 0
+  digit_b = 99 % 10 = 9
+  diff = 0 - 9 - 1 = -10 where the -1 is the borrow from column 1
+  diff < 0 so borrow 10 from hundreds place
+  diff = -10 + 10 = 0
+  borrow = 1
+  result_digits = [1, 0]
+  a = 100 // 10 = 10
+  b = 99 // 10 = 9
+  column 3 hundreds place
+  digit_a = 10 % 10 = 0
+  digit_b = 9 % 10 = 9
+  diff = 0 - 9 - 1 = -10 where the -1 is the borrow from column 2
+  diff < 0 so borrow 10 from thousands place
+  diff = -10 + 10 = 0
+  borrow = 1
+  result_digits = [1, 0, 0]
+  a = 10 // 10 = 1
+  b = 9 // 10 = 0 so b is exhausted
+  column 4 thousands place
+  digit_a = 1 % 10 = 1
+  digit_b = 0 % 10 = 0
+  diff = 1 - 0 - 1 = 0 where the -1 is the borrow from column 3
+  diff >= 0 so no borrow
+  borrow = 0
+  result_digits = [1, 0, 0, 0]
+  a = 1 // 10 = 0 so a is exhausted
+  b = 0 // 10 = 0
+  loop ends
+  result_digits reversed = [1]
+  subtract(1000, 999) = 1
+  b had larger magnitude and b was positive so result is positive
+  result = 1
+  -999 + 1000 = 1
+
+cal: add(-1234, 9999):
+  a = -1234
+  b = 9999
+  a < 0 and b > 0 so subtract smaller absolute value from larger and keep sign of larger
+  abs_a = 1234
+  abs_b = 9999
+  abs_b > abs_a so b has larger magnitude and result will be positive
+  compute subtract(9999, 1234)
+  borrow = 0
+  result_digits = []
+  column 1 ones place
+  digit_a = 9999 % 10 = 9
+  digit_b = 1234 % 10 = 4
+  diff = 9 - 4 - 0 = 5
+  diff >= 0 so no borrow
+  borrow = 0
+  result_digits = [5]
+  a = 9999 // 10 = 999
+  b = 1234 // 10 = 123
+  column 2 tens place
+  digit_a = 999 % 10 = 9
+  digit_b = 123 % 10 = 3
+  diff = 9 - 3 - 0 = 6
+  diff >= 0 so no borrow
+  borrow = 0
+  result_digits = [5, 6]
+  a = 999 // 10 = 99
+  b = 123 // 10 = 12
+  column 3 hundreds place
+  digit_a = 99 % 10 = 9
+  digit_b = 12 % 10 = 2
+  diff = 9 - 2 - 0 = 7
+  diff >= 0 so no borrow
+  borrow = 0
+  result_digits = [5, 6, 7]
+  a = 99 // 10 = 9
+  b = 12 // 10 = 1
+  column 4 thousands place
+  digit_a = 9 % 10 = 9
+  digit_b = 1 % 10 = 1
+  diff = 9 - 1 - 0 = 8
+  diff >= 0 so no borrow
+  borrow = 0
+  result_digits = [5, 6, 7, 8]
+  a = 9 // 10 = 0 so a is exhausted
+  b = 1 // 10 = 0 so b is exhausted
+  loop ends
+  result_digits reversed = [8, 7, 6, 5]
+  subtract(9999, 1234) = 8765
+  b had larger magnitude and b was positive so result is positive
+  result = 8765
+  -1234 + 9999 = 8765
+
+cal: add(3, -5):
+  a = 3
+  b = -5
+  a > 0 and b < 0 so subtract smaller absolute value from larger and keep sign of larger
+  abs_a = 3
+  abs_b = 5
+  abs_b > abs_a so b has larger magnitude and result will be negative
+  compute subtract(5, 3)
+  borrow = 0
+  result_digits = []
+  column 1 ones place
+  digit_a = 5 % 10 = 5
+  digit_b = 3 % 10 = 3
+  diff = 5 - 3 - 0 = 2
+  diff >= 0 so no borrow
+  borrow = 0
+  result_digits = [2]
+  a = 5 // 10 = 0 so a is exhausted
+  b = 3 // 10 = 0 so b is exhausted
+  loop ends
+  result_digits reversed = [2]
+  subtract(5, 3) = 2
+  b had larger magnitude and b was negative so negate
+  result = -2
+  3 + -5 = -2
+
+cal: add(1, -9):
+  a = 1
+  b = -9
+  a > 0 and b < 0 so subtract smaller absolute value from larger and keep sign of larger
+  abs_a = 1
+  abs_b = 9
+  abs_b > abs_a so b has larger magnitude and result will be negative
+  compute subtract(9, 1)
+  borrow = 0
+  result_digits = []
+  column 1 ones place
+  digit_a = 9 % 10 = 9
+  digit_b = 1 % 10 = 1
+  diff = 9 - 1 - 0 = 8
+  diff >= 0 so no borrow
+  borrow = 0
+  result_digits = [8]
+  a = 9 // 10 = 0 so a is exhausted
+  b = 1 // 10 = 0 so b is exhausted
+  loop ends
+  result_digits reversed = [8]
+  subtract(9, 1) = 8
+  b had larger magnitude and b was negative so negate
+  result = -8
+  1 + -9 = -8
+
+cal: add(10, -50):
+  a = 10
+  b = -50
+  a > 0 and b < 0 so subtract smaller absolute value from larger and keep sign of larger
+  abs_a = 10
+  abs_b = 50
+  abs_b > abs_a so b has larger magnitude and result will be negative
+  compute subtract(50, 10)
+  borrow = 0
+  result_digits = []
+  column 1 ones place
+  digit_a = 50 % 10 = 0
+  digit_b = 10 % 10 = 0
+  diff = 0 - 0 - 0 = 0
+  diff >= 0 so no borrow
+  borrow = 0
+  result_digits = [0]
+  a = 50 // 10 = 5
+  b = 10 // 10 = 1
+  column 2 tens place
+  digit_a = 5 % 10 = 5
+  digit_b = 1 % 10 = 1
+  diff = 5 - 1 - 0 = 4
+  diff >= 0 so no borrow
+  borrow = 0
+  result_digits = [0, 4]
+  a = 5 // 10 = 0 so a is exhausted
+  b = 1 // 10 = 0 so b is exhausted
+  loop ends
+  result_digits reversed = [4, 0]
+  subtract(50, 10) = 40
+  b had larger magnitude and b was negative so negate
+  result = -40
+  10 + -50 = -40
+
+cal: add(47, -100):
+  a = 47
+  b = -100
+  a > 0 and b < 0 so subtract smaller absolute value from larger and keep sign of larger
+  abs_a = 47
+  abs_b = 100
+  abs_b > abs_a so b has larger magnitude and result will be negative
+  compute subtract(100, 47)
+  borrow = 0
+  result_digits = []
+  column 1 ones place
+  digit_a = 100 % 10 = 0
+  digit_b = 47 % 10 = 7
+  diff = 0 - 7 - 0 = -7
+  diff < 0 so borrow 10 from tens place
+  diff = -7 + 10 = 3
+  borrow = 1
+  result_digits = [3]
+  a = 100 // 10 = 10
+  b = 47 // 10 = 4
+  column 2 tens place
+  digit_a = 10 % 10 = 0
+  digit_b = 4 % 10 = 4
+  diff = 0 - 4 - 1 = -5 where the -1 is the borrow from column 1
+  diff < 0 so borrow 10 from hundreds place
+  diff = -5 + 10 = 5
+  borrow = 1
+  result_digits = [3, 5]
+  a = 10 // 10 = 1
+  b = 4 // 10 = 0 so b is exhausted
+  column 3 hundreds place
+  digit_a = 1 % 10 = 1
+  digit_b = 0 % 10 = 0
+  diff = 1 - 0 - 1 = 0 where the -1 is the borrow from column 2
+  diff >= 0 so no borrow
+  borrow = 0
+  result_digits = [3, 5, 0]
+  a = 1 // 10 = 0 so a is exhausted
+  b = 0 // 10 = 0
+  loop ends
+  result_digits reversed = [5, 3]
+  subtract(100, 47) = 53
+  b had larger magnitude and b was negative so negate
+  result = -53
+  47 + -100 = -53
+
+cal: add(99, -200):
+  a = 99
+  b = -200
+  a > 0 and b < 0 so subtract smaller absolute value from larger and keep sign of larger
+  abs_a = 99
+  abs_b = 200
+  abs_b > abs_a so b has larger magnitude and result will be negative
+  compute subtract(200, 99)
+  borrow = 0
+  result_digits = []
+  column 1 ones place
+  digit_a = 200 % 10 = 0
+  digit_b = 99 % 10 = 9
+  diff = 0 - 9 - 0 = -9
+  diff < 0 so borrow 10 from tens place
+  diff = -9 + 10 = 1
+  borrow = 1
+  result_digits = [1]
+  a = 200 // 10 = 20
+  b = 99 // 10 = 9
+  column 2 tens place
+  digit_a = 20 % 10 = 0
+  digit_b = 9 % 10 = 9
+  diff = 0 - 9 - 1 = -10 where the -1 is the borrow from column 1
+  diff < 0 so borrow 10 from hundreds place
+  diff = -10 + 10 = 0
+  borrow = 1
+  result_digits = [1, 0]
+  a = 20 // 10 = 2
+  b = 9 // 10 = 0 so b is exhausted
+  column 3 hundreds place
+  digit_a = 2 % 10 = 2
+  digit_b = 0 % 10 = 0
+  diff = 2 - 0 - 1 = 1 where the -1 is the borrow from column 2
+  diff >= 0 so no borrow
+  borrow = 0
+  result_digits = [1, 0, 1]
+  a = 2 // 10 = 0 so a is exhausted
+  b = 0 // 10 = 0
+  loop ends
+  result_digits reversed = [1, 0, 1]
+  subtract(200, 99) = 101
+  b had larger magnitude and b was negative so negate
+  result = -101
+  99 + -200 = -101
+
+cal: add(285, -347):
+  a = 285
+  b = -347
+  a > 0 and b < 0 so subtract smaller absolute value from larger and keep sign of larger
+  abs_a = 285
+  abs_b = 347
+  abs_b > abs_a so b has larger magnitude and result will be negative
+  compute subtract(347, 285)
+  borrow = 0
+  result_digits = []
+  column 1 ones place
+  digit_a = 347 % 10 = 7
+  digit_b = 285 % 10 = 5
+  diff = 7 - 5 - 0 = 2
+  diff >= 0 so no borrow
+  borrow = 0
+  result_digits = [2]
+  a = 347 // 10 = 34
+  b = 285 // 10 = 28
+  column 2 tens place
+  digit_a = 34 % 10 = 4
+  digit_b = 28 % 10 = 8
+  diff = 4 - 8 - 0 = -4
+  diff < 0 so borrow 10 from hundreds place
+  diff = -4 + 10 = 6
+  borrow = 1
+  result_digits = [2, 6]
+  a = 34 // 10 = 3
+  b = 28 // 10 = 2
+  column 3 hundreds place
+  digit_a = 3 % 10 = 3
+  digit_b = 2 % 10 = 2
+  diff = 3 - 2 - 1 = 0 where the -1 is the borrow from column 2
+  diff >= 0 so no borrow
+  borrow = 0
+  result_digits = [2, 6, 0]
+  a = 3 // 10 = 0 so a is exhausted
+  b = 2 // 10 = 0 so b is exhausted
+  loop ends
+  result_digits reversed = [6, 2]
+  subtract(347, 285) = 62
+  b had larger magnitude and b was negative so negate
+  result = -62
+  285 + -347 = -62
+
+cal: add(500, -501):
+  a = 500
+  b = -501
+  a > 0 and b < 0 so subtract smaller absolute value from larger and keep sign of larger
+  abs_a = 500
+  abs_b = 501
+  abs_b > abs_a so b has larger magnitude and result will be negative
+  compute subtract(501, 500)
+  borrow = 0
+  result_digits = []
+  column 1 ones place
+  digit_a = 501 % 10 = 1
+  digit_b = 500 % 10 = 0
+  diff = 1 - 0 - 0 = 1
+  diff >= 0 so no borrow
+  borrow = 0
+  result_digits = [1]
+  a = 501 // 10 = 50
+  b = 500 // 10 = 50
+  column 2 tens place
+  digit_a = 50 % 10 = 0
+  digit_b = 50 % 10 = 0
+  diff = 0 - 0 - 0 = 0
+  diff >= 0 so no borrow
+  borrow = 0
+  result_digits = [1, 0]
+  a = 50 // 10 = 5
+  b = 50 // 10 = 5
+  column 3 hundreds place
+  digit_a = 5 % 10 = 5
+  digit_b = 5 % 10 = 5
+  diff = 5 - 5 - 0 = 0
+  diff >= 0 so no borrow
+  borrow = 0
+  result_digits = [1, 0, 0]
+  a = 5 // 10 = 0 so a is exhausted
+  b = 5 // 10 = 0 so b is exhausted
+  loop ends
+  result_digits reversed = [1]
+  subtract(501, 500) = 1
+  b had larger magnitude and b was negative so negate
+  result = -1
+  500 + -501 = -1
+
+cal: add(999, -1000):
+  a = 999
+  b = -1000
+  a > 0 and b < 0 so subtract smaller absolute value from larger and keep sign of larger
+  abs_a = 999
+  abs_b = 1000
+  abs_b > abs_a so b has larger magnitude and result will be negative
+  compute subtract(1000, 999)
+  borrow = 0
+  result_digits = []
+  column 1 ones place
+  digit_a = 1000 % 10 = 0
+  digit_b = 999 % 10 = 9
+  diff = 0 - 9 - 0 = -9
+  diff < 0 so borrow 10 from tens place
+  diff = -9 + 10 = 1
+  borrow = 1
+  result_digits = [1]
+  a = 1000 // 10 = 100
+  b = 999 // 10 = 99
+  column 2 tens place
+  digit_a = 100 % 10 = 0
+  digit_b = 99 % 10 = 9
+  diff = 0 - 9 - 1 = -10 where the -1 is the borrow from column 1
+  diff < 0 so borrow 10 from hundreds place
+  diff = -10 + 10 = 0
+  borrow = 1
+  result_digits = [1, 0]
+  a = 100 // 10 = 10
+  b = 99 // 10 = 9
+  column 3 hundreds place
+  digit_a = 10 % 10 = 0
+  digit_b = 9 % 10 = 9
+  diff = 0 - 9 - 1 = -10 where the -1 is the borrow from column 2
+  diff < 0 so borrow 10 from thousands place
+  diff = -10 + 10 = 0
+  borrow = 1
+  result_digits = [1, 0, 0]
+  a = 10 // 10 = 1
+  b = 9 // 10 = 0 so b is exhausted
+  column 4 thousands place
+  digit_a = 1 % 10 = 1
+  digit_b = 0 % 10 = 0
+  diff = 1 - 0 - 1 = 0 where the -1 is the borrow from column 3
+  diff >= 0 so no borrow
+  borrow = 0
+  result_digits = [1, 0, 0, 0]
+  a = 1 // 10 = 0 so a is exhausted
+  b = 0 // 10 = 0
+  loop ends
+  result_digits reversed = [1]
+  subtract(1000, 999) = 1
+  b had larger magnitude and b was negative so negate
+  result = -1
+  999 + -1000 = -1
+
+cal: add(1234, -9999):
+  a = 1234
+  b = -9999
+  a > 0 and b < 0 so subtract smaller absolute value from larger and keep sign of larger
+  abs_a = 1234
+  abs_b = 9999
+  abs_b > abs_a so b has larger magnitude and result will be negative
+  compute subtract(9999, 1234)
+  borrow = 0
+  result_digits = []
+  column 1 ones place
+  digit_a = 9999 % 10 = 9
+  digit_b = 1234 % 10 = 4
+  diff = 9 - 4 - 0 = 5
+  diff >= 0 so no borrow
+  borrow = 0
+  result_digits = [5]
+  a = 9999 // 10 = 999
+  b = 1234 // 10 = 123
+  column 2 tens place
+  digit_a = 999 % 10 = 9
+  digit_b = 123 % 10 = 3
+  diff = 9 - 3 - 0 = 6
+  diff >= 0 so no borrow
+  borrow = 0
+  result_digits = [5, 6]
+  a = 999 // 10 = 99
+  b = 123 // 10 = 12
+  column 3 hundreds place
+  digit_a = 99 % 10 = 9
+  digit_b = 12 % 10 = 2
+  diff = 9 - 2 - 0 = 7
+  diff >= 0 so no borrow
+  borrow = 0
+  result_digits = [5, 6, 7]
+  a = 99 // 10 = 9
+  b = 12 // 10 = 1
+  column 4 thousands place
+  digit_a = 9 % 10 = 9
+  digit_b = 1 % 10 = 1
+  diff = 9 - 1 - 0 = 8
+  diff >= 0 so no borrow
+  borrow = 0
+  result_digits = [5, 6, 7, 8]
+  a = 9 // 10 = 0 so a is exhausted
+  b = 1 // 10 = 0 so b is exhausted
+  loop ends
+  result_digits reversed = [8, 7, 6, 5]
+  subtract(9999, 1234) = 8765
+  b had larger magnitude and b was negative so negate
+  result = -8765
+  1234 + -9999 = -8765
+
+cal: add(-5, 3):
+  a = -5
+  b = 3
+  a < 0 and b > 0 so subtract smaller absolute value from larger and keep sign of larger
+  abs_a = 5
+  abs_b = 3
+  abs_a > abs_b so a has larger magnitude and result will be negative
+  compute subtract(5, 3)
+  borrow = 0
+  result_digits = []
+  column 1 ones place
+  digit_a = 5 % 10 = 5
+  digit_b = 3 % 10 = 3
+  diff = 5 - 3 - 0 = 2
+  diff >= 0 so no borrow
+  borrow = 0
+  result_digits = [2]
+  a = 5 // 10 = 0 so a is exhausted
+  b = 3 // 10 = 0 so b is exhausted
+  loop ends
+  result_digits reversed = [2]
+  subtract(5, 3) = 2
+  a had larger magnitude and a was negative so negate
+  result = -2
+  -5 + 3 = -2
+
+cal: add(-9, 1):
+  a = -9
+  b = 1
+  a < 0 and b > 0 so subtract smaller absolute value from larger and keep sign of larger
+  abs_a = 9
+  abs_b = 1
+  abs_a > abs_b so a has larger magnitude and result will be negative
+  compute subtract(9, 1)
+  borrow = 0
+  result_digits = []
+  column 1 ones place
+  digit_a = 9 % 10 = 9
+  digit_b = 1 % 10 = 1
+  diff = 9 - 1 - 0 = 8
+  diff >= 0 so no borrow
+  borrow = 0
+  result_digits = [8]
+  a = 9 // 10 = 0 so a is exhausted
+  b = 1 // 10 = 0 so b is exhausted
+  loop ends
+  result_digits reversed = [8]
+  subtract(9, 1) = 8
+  a had larger magnitude and a was negative so negate
+  result = -8
+  -9 + 1 = -8
+
+cal: add(-50, 10):
+  a = -50
+  b = 10
+  a < 0 and b > 0 so subtract smaller absolute value from larger and keep sign of larger
+  abs_a = 50
+  abs_b = 10
+  abs_a > abs_b so a has larger magnitude and result will be negative
+  compute subtract(50, 10)
+  borrow = 0
+  result_digits = []
+  column 1 ones place
+  digit_a = 50 % 10 = 0
+  digit_b = 10 % 10 = 0
+  diff = 0 - 0 - 0 = 0
+  diff >= 0 so no borrow
+  borrow = 0
+  result_digits = [0]
+  a = 50 // 10 = 5
+  b = 10 // 10 = 1
+  column 2 tens place
+  digit_a = 5 % 10 = 5
+  digit_b = 1 % 10 = 1
+  diff = 5 - 1 - 0 = 4
+  diff >= 0 so no borrow
+  borrow = 0
+  result_digits = [0, 4]
+  a = 5 // 10 = 0 so a is exhausted
+  b = 1 // 10 = 0 so b is exhausted
+  loop ends
+  result_digits reversed = [4, 0]
+  subtract(50, 10) = 40
+  a had larger magnitude and a was negative so negate
+  result = -40
+  -50 + 10 = -40
+
+cal: add(-100, 47):
+  a = -100
+  b = 47
+  a < 0 and b > 0 so subtract smaller absolute value from larger and keep sign of larger
+  abs_a = 100
+  abs_b = 47
+  abs_a > abs_b so a has larger magnitude and result will be negative
+  compute subtract(100, 47)
+  borrow = 0
+  result_digits = []
+  column 1 ones place
+  digit_a = 100 % 10 = 0
+  digit_b = 47 % 10 = 7
+  diff = 0 - 7 - 0 = -7
+  diff < 0 so borrow 10 from tens place
+  diff = -7 + 10 = 3
+  borrow = 1
+  result_digits = [3]
+  a = 100 // 10 = 10
+  b = 47 // 10 = 4
+  column 2 tens place
+  digit_a = 10 % 10 = 0
+  digit_b = 4 % 10 = 4
+  diff = 0 - 4 - 1 = -5 where the -1 is the borrow from column 1
+  diff < 0 so borrow 10 from hundreds place
+  diff = -5 + 10 = 5
+  borrow = 1
+  result_digits = [3, 5]
+  a = 10 // 10 = 1
+  b = 4 // 10 = 0 so b is exhausted
+  column 3 hundreds place
+  digit_a = 1 % 10 = 1
+  digit_b = 0 % 10 = 0
+  diff = 1 - 0 - 1 = 0 where the -1 is the borrow from column 2
+  diff >= 0 so no borrow
+  borrow = 0
+  result_digits = [3, 5, 0]
+  a = 1 // 10 = 0 so a is exhausted
+  b = 0 // 10 = 0
+  loop ends
+  result_digits reversed = [5, 3]
+  subtract(100, 47) = 53
+  a had larger magnitude and a was negative so negate
+  result = -53
+  -100 + 47 = -53
+
+cal: add(-200, 99):
+  a = -200
+  b = 99
+  a < 0 and b > 0 so subtract smaller absolute value from larger and keep sign of larger
+  abs_a = 200
+  abs_b = 99
+  abs_a > abs_b so a has larger magnitude and result will be negative
+  compute subtract(200, 99)
+  borrow = 0
+  result_digits = []
+  column 1 ones place
+  digit_a = 200 % 10 = 0
+  digit_b = 99 % 10 = 9
+  diff = 0 - 9 - 0 = -9
+  diff < 0 so borrow 10 from tens place
+  diff = -9 + 10 = 1
+  borrow = 1
+  result_digits = [1]
+  a = 200 // 10 = 20
+  b = 99 // 10 = 9
+  column 2 tens place
+  digit_a = 20 % 10 = 0
+  digit_b = 9 % 10 = 9
+  diff = 0 - 9 - 1 = -10 where the -1 is the borrow from column 1
+  diff < 0 so borrow 10 from hundreds place
+  diff = -10 + 10 = 0
+  borrow = 1
+  result_digits = [1, 0]
+  a = 20 // 10 = 2
+  b = 9 // 10 = 0 so b is exhausted
+  column 3 hundreds place
+  digit_a = 2 % 10 = 2
+  digit_b = 0 % 10 = 0
+  diff = 2 - 0 - 1 = 1 where the -1 is the borrow from column 2
+  diff >= 0 so no borrow
+  borrow = 0
+  result_digits = [1, 0, 1]
+  a = 2 // 10 = 0 so a is exhausted
+  b = 0 // 10 = 0
+  loop ends
+  result_digits reversed = [1, 0, 1]
+  subtract(200, 99) = 101
+  a had larger magnitude and a was negative so negate
+  result = -101
+  -200 + 99 = -101
+
+cal: add(-347, 285):
+  a = -347
+  b = 285
+  a < 0 and b > 0 so subtract smaller absolute value from larger and keep sign of larger
+  abs_a = 347
+  abs_b = 285
+  abs_a > abs_b so a has larger magnitude and result will be negative
+  compute subtract(347, 285)
+  borrow = 0
+  result_digits = []
+  column 1 ones place
+  digit_a = 347 % 10 = 7
+  digit_b = 285 % 10 = 5
+  diff = 7 - 5 - 0 = 2
+  diff >= 0 so no borrow
+  borrow = 0
+  result_digits = [2]
+  a = 347 // 10 = 34
+  b = 285 // 10 = 28
+  column 2 tens place
+  digit_a = 34 % 10 = 4
+  digit_b = 28 % 10 = 8
+  diff = 4 - 8 - 0 = -4
+  diff < 0 so borrow 10 from hundreds place
+  diff = -4 + 10 = 6
+  borrow = 1
+  result_digits = [2, 6]
+  a = 34 // 10 = 3
+  b = 28 // 10 = 2
+  column 3 hundreds place
+  digit_a = 3 % 10 = 3
+  digit_b = 2 % 10 = 2
+  diff = 3 - 2 - 1 = 0 where the -1 is the borrow from column 2
+  diff >= 0 so no borrow
+  borrow = 0
+  result_digits = [2, 6, 0]
+  a = 3 // 10 = 0 so a is exhausted
+  b = 2 // 10 = 0 so b is exhausted
+  loop ends
+  result_digits reversed = [6, 2]
+  subtract(347, 285) = 62
+  a had larger magnitude and a was negative so negate
+  result = -62
+  -347 + 285 = -62
+
+cal: add(-501, 500):
+  a = -501
+  b = 500
+  a < 0 and b > 0 so subtract smaller absolute value from larger and keep sign of larger
+  abs_a = 501
+  abs_b = 500
+  abs_a > abs_b so a has larger magnitude and result will be negative
+  compute subtract(501, 500)
+  borrow = 0
+  result_digits = []
+  column 1 ones place
+  digit_a = 501 % 10 = 1
+  digit_b = 500 % 10 = 0
+  diff = 1 - 0 - 0 = 1
+  diff >= 0 so no borrow
+  borrow = 0
+  result_digits = [1]
+  a = 501 // 10 = 50
+  b = 500 // 10 = 50
+  column 2 tens place
+  digit_a = 50 % 10 = 0
+  digit_b = 50 % 10 = 0
+  diff = 0 - 0 - 0 = 0
+  diff >= 0 so no borrow
+  borrow = 0
+  result_digits = [1, 0]
+  a = 50 // 10 = 5
+  b = 50 // 10 = 5
+  column 3 hundreds place
+  digit_a = 5 % 10 = 5
+  digit_b = 5 % 10 = 5
+  diff = 5 - 5 - 0 = 0
+  diff >= 0 so no borrow
+  borrow = 0
+  result_digits = [1, 0, 0]
+  a = 5 // 10 = 0 so a is exhausted
+  b = 5 // 10 = 0 so b is exhausted
+  loop ends
+  result_digits reversed = [1]
+  subtract(501, 500) = 1
+  a had larger magnitude and a was negative so negate
+  result = -1
+  -501 + 500 = -1
+
+cal: add(-1000, 999):
+  a = -1000
+  b = 999
+  a < 0 and b > 0 so subtract smaller absolute value from larger and keep sign of larger
+  abs_a = 1000
+  abs_b = 999
+  abs_a > abs_b so a has larger magnitude and result will be negative
+  compute subtract(1000, 999)
+  borrow = 0
+  result_digits = []
+  column 1 ones place
+  digit_a = 1000 % 10 = 0
+  digit_b = 999 % 10 = 9
+  diff = 0 - 9 - 0 = -9
+  diff < 0 so borrow 10 from tens place
+  diff = -9 + 10 = 1
+  borrow = 1
+  result_digits = [1]
+  a = 1000 // 10 = 100
+  b = 999 // 10 = 99
+  column 2 tens place
+  digit_a = 100 % 10 = 0
+  digit_b = 99 % 10 = 9
+  diff = 0 - 9 - 1 = -10 where the -1 is the borrow from column 1
+  diff < 0 so borrow 10 from hundreds place
+  diff = -10 + 10 = 0
+  borrow = 1
+  result_digits = [1, 0]
+  a = 100 // 10 = 10
+  b = 99 // 10 = 9
+  column 3 hundreds place
+  digit_a = 10 % 10 = 0
+  digit_b = 9 % 10 = 9
+  diff = 0 - 9 - 1 = -10 where the -1 is the borrow from column 2
+  diff < 0 so borrow 10 from thousands place
+  diff = -10 + 10 = 0
+  borrow = 1
+  result_digits = [1, 0, 0]
+  a = 10 // 10 = 1
+  b = 9 // 10 = 0 so b is exhausted
+  column 4 thousands place
+  digit_a = 1 % 10 = 1
+  digit_b = 0 % 10 = 0
+  diff = 1 - 0 - 1 = 0 where the -1 is the borrow from column 3
+  diff >= 0 so no borrow
+  borrow = 0
+  result_digits = [1, 0, 0, 0]
+  a = 1 // 10 = 0 so a is exhausted
+  b = 0 // 10 = 0
+  loop ends
+  result_digits reversed = [1]
+  subtract(1000, 999) = 1
+  a had larger magnitude and a was negative so negate
+  result = -1
+  -1000 + 999 = -1
+
+cal: add(-9999, 1234):
+  a = -9999
+  b = 1234
+  a < 0 and b > 0 so subtract smaller absolute value from larger and keep sign of larger
+  abs_a = 9999
+  abs_b = 1234
+  abs_a > abs_b so a has larger magnitude and result will be negative
+  compute subtract(9999, 1234)
+  borrow = 0
+  result_digits = []
+  column 1 ones place
+  digit_a = 9999 % 10 = 9
+  digit_b = 1234 % 10 = 4
+  diff = 9 - 4 - 0 = 5
+  diff >= 0 so no borrow
+  borrow = 0
+  result_digits = [5]
+  a = 9999 // 10 = 999
+  b = 1234 // 10 = 123
+  column 2 tens place
+  digit_a = 999 % 10 = 9
+  digit_b = 123 % 10 = 3
+  diff = 9 - 3 - 0 = 6
+  diff >= 0 so no borrow
+  borrow = 0
+  result_digits = [5, 6]
+  a = 999 // 10 = 99
+  b = 123 // 10 = 12
+  column 3 hundreds place
+  digit_a = 99 % 10 = 9
+  digit_b = 12 % 10 = 2
+  diff = 9 - 2 - 0 = 7
+  diff >= 0 so no borrow
+  borrow = 0
+  result_digits = [5, 6, 7]
+  a = 99 // 10 = 9
+  b = 12 // 10 = 1
+  column 4 thousands place
+  digit_a = 9 % 10 = 9
+  digit_b = 1 % 10 = 1
+  diff = 9 - 1 - 0 = 8
+  diff >= 0 so no borrow
+  borrow = 0
+  result_digits = [5, 6, 7, 8]
+  a = 9 // 10 = 0 so a is exhausted
+  b = 1 // 10 = 0 so b is exhausted
+  loop ends
+  result_digits reversed = [8, 7, 6, 5]
+  subtract(9999, 1234) = 8765
+  a had larger magnitude and a was negative so negate
+  result = -8765
+  -9999 + 1234 = -8765
+
+cal: add(-4, 4):
+  a = -4
+  b = 4
+  a < 0 and b > 0 so subtract smaller absolute value from larger and keep sign of larger
+  abs_a = 4
+  abs_b = 4
+  abs_a == abs_b so equal magnitudes with opposite signs cancel out
+  result = 0
+  -4 + 4 = 0
+
+cal: add(-1, 1):
+  a = -1
+  b = 1
+  a < 0 and b > 0 so subtract smaller absolute value from larger and keep sign of larger
+  abs_a = 1
+  abs_b = 1
+  abs_a == abs_b so equal magnitudes with opposite signs cancel out
+  result = 0
+  -1 + 1 = 0
+
+cal: add(-100, 100):
+  a = -100
+  b = 100
+  a < 0 and b > 0 so subtract smaller absolute value from larger and keep sign of larger
+  abs_a = 100
+  abs_b = 100
+  abs_a == abs_b so equal magnitudes with opposite signs cancel out
+  result = 0
+  -100 + 100 = 0
+
+cal: add(-999, 999):
+  a = -999
+  b = 999
+  a < 0 and b > 0 so subtract smaller absolute value from larger and keep sign of larger
+  abs_a = 999
+  abs_b = 999
+  abs_a == abs_b so equal magnitudes with opposite signs cancel out
+  result = 0
+  -999 + 999 = 0
+
+cal: add(-5678, 5678):
+  a = -5678
+  b = 5678
+  a < 0 and b > 0 so subtract smaller absolute value from larger and keep sign of larger
+  abs_a = 5678
+  abs_b = 5678
+  abs_a == abs_b so equal magnitudes with opposite signs cancel out
+  result = 0
+  -5678 + 5678 = 0
+
+cal: add(0, 0):
+  a = 0
+  b = 0
+  a == 0 so return b directly
+  result = 0
+  0 + 0 = 0
+
+cal: add(0, 1):
+  a = 0
+  b = 1
+  a == 0 so return b directly
+  result = 1
+  0 + 1 = 1
+
+cal: add(0, 7):
+  a = 0
+  b = 7
+  a == 0 so return b directly
+  result = 7
+  0 + 7 = 7
+
+cal: add(7, 0):
+  a = 7
+  b = 0
+  b == 0 so return a directly
+  result = 7
+  7 + 0 = 7
+
+cal: add(0, 99):
+  a = 0
+  b = 99
+  a == 0 so return b directly
+  result = 99
+  0 + 99 = 99
+
+cal: add(99, 0):
+  a = 99
+  b = 0
+  b == 0 so return a directly
+  result = 99
+  99 + 0 = 99
+
+cal: add(0, -5):
+  a = 0
+  b = -5
+  a == 0 so return b directly
+  result = -5
+  0 + -5 = -5
+
+cal: add(-5, 0):
+  a = -5
+  b = 0
+  b == 0 so return a directly
+  result = -5
+  -5 + 0 = -5
+
+cal: add(0, -999):
+  a = 0
+  b = -999
+  a == 0 so return b directly
+  result = -999
+  0 + -999 = -999
+
+cal: add(-999, 0):
+  a = -999
+  b = 0
+  b == 0 so return a directly
+  result = -999
+  -999 + 0 = -999
+
+cal: add(56, -93):
+  a = 56
+  b = -93
+  a > 0 and b < 0 so subtract smaller absolute value from larger and keep sign of larger
+  abs_a = 56
+  abs_b = 93
+  abs_b > abs_a so b has larger magnitude and result will be negative
+  compute subtract(93, 56)
+  borrow = 0
+  result_digits = []
+  column 1 ones place
+  digit_a = 93 % 10 = 3
+  digit_b = 56 % 10 = 6
+  diff = 3 - 6 - 0 = -3
+  diff < 0 so borrow 10 from tens place
+  diff = -3 + 10 = 7
+  borrow = 1
+  result_digits = [7]
+  a = 93 // 10 = 9
+  b = 56 // 10 = 5
+  column 2 tens place
+  digit_a = 9 % 10 = 9
+  digit_b = 5 % 10 = 5
+  diff = 9 - 5 - 1 = 3 where the -1 is the borrow from column 1
+  diff >= 0 so no borrow
+  borrow = 0
+  result_digits = [7, 3]
+  a = 9 // 10 = 0 so a is exhausted
+  b = 5 // 10 = 0 so b is exhausted
+  loop ends
+  result_digits reversed = [3, 7]
+  subtract(93, 56) = 37
+  b had larger magnitude and b was negative so negate
+  result = -37
+  56 + -93 = -37
+
+cal: add(-100, 64):
+  a = -100
+  b = 64
+  a < 0 and b > 0 so subtract smaller absolute value from larger and keep sign of larger
+  abs_a = 100
+  abs_b = 64
+  abs_a > abs_b so a has larger magnitude and result will be negative
+  compute subtract(100, 64)
+  borrow = 0
+  result_digits = []
+  column 1 ones place
+  digit_a = 100 % 10 = 0
+  digit_b = 64 % 10 = 4
+  diff = 0 - 4 - 0 = -4
+  diff < 0 so borrow 10 from tens place
+  diff = -4 + 10 = 6
+  borrow = 1
+  result_digits = [6]
+  a = 100 // 10 = 10
+  b = 64 // 10 = 6
+  column 2 tens place
+  digit_a = 10 % 10 = 0
+  digit_b = 6 % 10 = 6
+  diff = 0 - 6 - 1 = -7 where the -1 is the borrow from column 1
+  diff < 0 so borrow 10 from hundreds place
+  diff = -7 + 10 = 3
+  borrow = 1
+  result_digits = [6, 3]
+  a = 10 // 10 = 1
+  b = 6 // 10 = 0 so b is exhausted
+  column 3 hundreds place
+  digit_a = 1 % 10 = 1
+  digit_b = 0 % 10 = 0
+  diff = 1 - 0 - 1 = 0 where the -1 is the borrow from column 2
+  diff >= 0 so no borrow
+  borrow = 0
+  result_digits = [6, 3, 0]
+  a = 1 // 10 = 0 so a is exhausted
+  b = 0 // 10 = 0
+  loop ends
+  result_digits reversed = [3, 6]
+  subtract(100, 64) = 36
+  a had larger magnitude and a was negative so negate
+  result = -36
+  -100 + 64 = -36
+
+cal: add(200, -157):
+  a = 200
+  b = -157
+  a > 0 and b < 0 so subtract smaller absolute value from larger and keep sign of larger
+  abs_a = 200
+  abs_b = 157
+  abs_a > abs_b so a has larger magnitude and result will be positive
+  compute subtract(200, 157)
+  borrow = 0
+  result_digits = []
+  column 1 ones place
+  digit_a = 200 % 10 = 0
+  digit_b = 157 % 10 = 7
+  diff = 0 - 7 - 0 = -7
+  diff < 0 so borrow 10 from tens place
+  diff = -7 + 10 = 3
+  borrow = 1
+  result_digits = [3]
+  a = 200 // 10 = 20
+  b = 157 // 10 = 15
+  column 2 tens place
+  digit_a = 20 % 10 = 0
+  digit_b = 15 % 10 = 5
+  diff = 0 - 5 - 1 = -6 where the -1 is the borrow from column 1
+  diff < 0 so borrow 10 from hundreds place
+  diff = -6 + 10 = 4
+  borrow = 1
+  result_digits = [3, 4]
+  a = 20 // 10 = 2
+  b = 15 // 10 = 1
+  column 3 hundreds place
+  digit_a = 2 % 10 = 2
+  digit_b = 1 % 10 = 1
+  diff = 2 - 1 - 1 = 0 where the -1 is the borrow from column 2
+  diff >= 0 so no borrow
+  borrow = 0
+  result_digits = [3, 4, 0]
+  a = 2 // 10 = 0 so a is exhausted
+  b = 1 // 10 = 0 so b is exhausted
+  loop ends
+  result_digits reversed = [4, 3]
+  subtract(200, 157) = 43
+  a had larger magnitude and a was positive so result is positive
+  result = 43
+  200 + -157 = 43
+
+cal: add(-342, 199):
+  a = -342
+  b = 199
+  a < 0 and b > 0 so subtract smaller absolute value from larger and keep sign of larger
+  abs_a = 342
+  abs_b = 199
+  abs_a > abs_b so a has larger magnitude and result will be negative
+  compute subtract(342, 199)
+  borrow = 0
+  result_digits = []
+  column 1 ones place
+  digit_a = 342 % 10 = 2
+  digit_b = 199 % 10 = 9
+  diff = 2 - 9 - 0 = -7
+  diff < 0 so borrow 10 from tens place
+  diff = -7 + 10 = 3
+  borrow = 1
+  result_digits = [3]
+  a = 342 // 10 = 34
+  b = 199 // 10 = 19
+  column 2 tens place
+  digit_a = 34 % 10 = 4
+  digit_b = 19 % 10 = 9
+  diff = 4 - 9 - 1 = -6 where the -1 is the borrow from column 1
+  diff < 0 so borrow 10 from hundreds place
+  diff = -6 + 10 = 4
+  borrow = 1
+  result_digits = [3, 4]
+  a = 34 // 10 = 3
+  b = 19 // 10 = 1
+  column 3 hundreds place
+  digit_a = 3 % 10 = 3
+  digit_b = 1 % 10 = 1
+  diff = 3 - 1 - 1 = 1 where the -1 is the borrow from column 2
+  diff >= 0 so no borrow
+  borrow = 0
+  result_digits = [3, 4, 1]
+  a = 3 // 10 = 0 so a is exhausted
+  b = 1 // 10 = 0 so b is exhausted
+  loop ends
+  result_digits reversed = [1, 4, 3]
+  subtract(342, 199) = 143
+  a had larger magnitude and a was negative so negate
+  result = -143
+  -342 + 199 = -143
+
+cal: add(1000, -999):
+  a = 1000
+  b = -999
+  a > 0 and b < 0 so subtract smaller absolute value from larger and keep sign of larger
+  abs_a = 1000
+  abs_b = 999
+  abs_a > abs_b so a has larger magnitude and result will be positive
+  compute subtract(1000, 999)
+  borrow = 0
+  result_digits = []
+  column 1 ones place
+  digit_a = 1000 % 10 = 0
+  digit_b = 999 % 10 = 9
+  diff = 0 - 9 - 0 = -9
+  diff < 0 so borrow 10 from tens place
+  diff = -9 + 10 = 1
+  borrow = 1
+  result_digits = [1]
+  a = 1000 // 10 = 100
+  b = 999 // 10 = 99
+  column 2 tens place
+  digit_a = 100 % 10 = 0
+  digit_b = 99 % 10 = 9
+  diff = 0 - 9 - 1 = -10 where the -1 is the borrow from column 1
+  diff < 0 so borrow 10 from hundreds place
+  diff = -10 + 10 = 0
+  borrow = 1
+  result_digits = [1, 0]
+  a = 100 // 10 = 10
+  b = 99 // 10 = 9
+  column 3 hundreds place
+  digit_a = 10 % 10 = 0
+  digit_b = 9 % 10 = 9
+  diff = 0 - 9 - 1 = -10 where the -1 is the borrow from column 2
+  diff < 0 so borrow 10 from thousands place
+  diff = -10 + 10 = 0
+  borrow = 1
+  result_digits = [1, 0, 0]
+  a = 10 // 10 = 1
+  b = 9 // 10 = 0 so b is exhausted
+  column 4 thousands place
+  digit_a = 1 % 10 = 1
+  digit_b = 0 % 10 = 0
+  diff = 1 - 0 - 1 = 0 where the -1 is the borrow from column 3
+  diff >= 0 so no borrow
+  borrow = 0
+  result_digits = [1, 0, 0, 0]
+  a = 1 // 10 = 0 so a is exhausted
+  b = 0 // 10 = 0
+  loop ends
+  result_digits reversed = [1]
+  subtract(1000, 999) = 1
+  a had larger magnitude and a was positive so result is positive
+  result = 1
+  1000 + -999 = 1
+
+cal: add(-5000, 4321):
+  a = -5000
+  b = 4321
+  a < 0 and b > 0 so subtract smaller absolute value from larger and keep sign of larger
+  abs_a = 5000
+  abs_b = 4321
+  abs_a > abs_b so a has larger magnitude and result will be negative
+  compute subtract(5000, 4321)
+  borrow = 0
+  result_digits = []
+  column 1 ones place
+  digit_a = 5000 % 10 = 0
+  digit_b = 4321 % 10 = 1
+  diff = 0 - 1 - 0 = -1
+  diff < 0 so borrow 10 from tens place
+  diff = -1 + 10 = 9
+  borrow = 1
+  result_digits = [9]
+  a = 5000 // 10 = 500
+  b = 4321 // 10 = 432
+  column 2 tens place
+  digit_a = 500 % 10 = 0
+  digit_b = 432 % 10 = 2
+  diff = 0 - 2 - 1 = -3 where the -1 is the borrow from column 1
+  diff < 0 so borrow 10 from hundreds place
+  diff = -3 + 10 = 7
+  borrow = 1
+  result_digits = [9, 7]
+  a = 500 // 10 = 50
+  b = 432 // 10 = 43
+  column 3 hundreds place
+  digit_a = 50 % 10 = 0
+  digit_b = 43 % 10 = 3
+  diff = 0 - 3 - 1 = -4 where the -1 is the borrow from column 2
+  diff < 0 so borrow 10 from thousands place
+  diff = -4 + 10 = 6
+  borrow = 1
+  result_digits = [9, 7, 6]
+  a = 50 // 10 = 5
+  b = 43 // 10 = 4
+  column 4 thousands place
+  digit_a = 5 % 10 = 5
+  digit_b = 4 % 10 = 4
+  diff = 5 - 4 - 1 = 0 where the -1 is the borrow from column 3
+  diff >= 0 so no borrow
+  borrow = 0
+  result_digits = [9, 7, 6, 0]
+  a = 5 // 10 = 0 so a is exhausted
+  b = 4 // 10 = 0 so b is exhausted
+  loop ends
+  result_digits reversed = [6, 7, 9]
+  subtract(5000, 4321) = 679
+  a had larger magnitude and a was negative so negate
+  result = -679
+  -5000 + 4321 = -679
+
+cal: add(8001, -7999):
+  a = 8001
+  b = -7999
+  a > 0 and b < 0 so subtract smaller absolute value from larger and keep sign of larger
+  abs_a = 8001
+  abs_b = 7999
+  abs_a > abs_b so a has larger magnitude and result will be positive
+  compute subtract(8001, 7999)
+  borrow = 0
+  result_digits = []
+  column 1 ones place
+  digit_a = 8001 % 10 = 1
+  digit_b = 7999 % 10 = 9
+  diff = 1 - 9 - 0 = -8
+  diff < 0 so borrow 10 from tens place
+  diff = -8 + 10 = 2
+  borrow = 1
+  result_digits = [2]
+  a = 8001 // 10 = 800
+  b = 7999 // 10 = 799
+  column 2 tens place
+  digit_a = 800 % 10 = 0
+  digit_b = 799 % 10 = 9
+  diff = 0 - 9 - 1 = -10 where the -1 is the borrow from column 1
+  diff < 0 so borrow 10 from hundreds place
+  diff = -10 + 10 = 0
+  borrow = 1
+  result_digits = [2, 0]
+  a = 800 // 10 = 80
+  b = 799 // 10 = 79
+  column 3 hundreds place
+  digit_a = 80 % 10 = 0
+  digit_b = 79 % 10 = 9
+  diff = 0 - 9 - 1 = -10 where the -1 is the borrow from column 2
+  diff < 0 so borrow 10 from thousands place
+  diff = -10 + 10 = 0
+  borrow = 1
+  result_digits = [2, 0, 0]
+  a = 80 // 10 = 8
+  b = 79 // 10 = 7
+  column 4 thousands place
+  digit_a = 8 % 10 = 8
+  digit_b = 7 % 10 = 7
+  diff = 8 - 7 - 1 = 0 where the -1 is the borrow from column 3
+  diff >= 0 so no borrow
+  borrow = 0
+  result_digits = [2, 0, 0, 0]
+  a = 8 // 10 = 0 so a is exhausted
+  b = 7 // 10 = 0 so b is exhausted
+  loop ends
+  result_digits reversed = [2]
+  subtract(8001, 7999) = 2
+  a had larger magnitude and a was positive so result is positive
+  result = 2
+  8001 + -7999 = 2
+
+cal: add(-10000, 9876):
+  a = -10000
+  b = 9876
+  a < 0 and b > 0 so subtract smaller absolute value from larger and keep sign of larger
+  abs_a = 10000
+  abs_b = 9876
+  abs_a > abs_b so a has larger magnitude and result will be negative
+  compute subtract(10000, 9876)
+  borrow = 0
+  result_digits = []
+  column 1 ones place
+  digit_a = 10000 % 10 = 0
+  digit_b = 9876 % 10 = 6
+  diff = 0 - 6 - 0 = -6
+  diff < 0 so borrow 10 from tens place
+  diff = -6 + 10 = 4
+  borrow = 1
+  result_digits = [4]
+  a = 10000 // 10 = 1000
+  b = 9876 // 10 = 987
+  column 2 tens place
+  digit_a = 1000 % 10 = 0
+  digit_b = 987 % 10 = 7
+  diff = 0 - 7 - 1 = -8 where the -1 is the borrow from column 1
+  diff < 0 so borrow 10 from hundreds place
+  diff = -8 + 10 = 2
+  borrow = 1
+  result_digits = [4, 2]
+  a = 1000 // 10 = 100
+  b = 987 // 10 = 98
+  column 3 hundreds place
+  digit_a = 100 % 10 = 0
+  digit_b = 98 % 10 = 8
+  diff = 0 - 8 - 1 = -9 where the -1 is the borrow from column 2
+  diff < 0 so borrow 10 from thousands place
+  diff = -9 + 10 = 1
+  borrow = 1
+  result_digits = [4, 2, 1]
+  a = 100 // 10 = 10
+  b = 98 // 10 = 9
+  column 4 thousands place
+  digit_a = 10 % 10 = 0
+  digit_b = 9 % 10 = 9
+  diff = 0 - 9 - 1 = -10 where the -1 is the borrow from column 3
+  diff < 0 so borrow 10 from ten-thousands place
+  diff = -10 + 10 = 0
+  borrow = 1
+  result_digits = [4, 2, 1, 0]
+  a = 10 // 10 = 1
+  b = 9 // 10 = 0 so b is exhausted
+  column 5 ten-thousands place
+  digit_a = 1 % 10 = 1
+  digit_b = 0 % 10 = 0
+  diff = 1 - 0 - 1 = 0 where the -1 is the borrow from column 4
+  diff >= 0 so no borrow
+  borrow = 0
+  result_digits = [4, 2, 1, 0, 0]
+  a = 1 // 10 = 0 so a is exhausted
+  b = 0 // 10 = 0
+  loop ends
+  result_digits reversed = [1, 2, 4]
+  subtract(10000, 9876) = 124
+  a had larger magnitude and a was negative so negate
+  result = -124
+  -10000 + 9876 = -124
+
+cal: add(123456, 654321):
+  a = 123456
+  b = 654321
+  a > 0 and b > 0 so use digit-by-digit addition with carry
+  carry = 0
+  result_digits = []
+  column 1 ones place
+  digit_a = 123456 % 10 = 6
+  digit_b = 654321 % 10 = 1
+  column_sum = 6 + 1 + 0 = 7
+  carry = 7 // 10 = 0 so no carry
+  write = 7 % 10 = 7
+  result_digits = [7]
+  a = 123456 // 10 = 12345
+  b = 654321 // 10 = 65432
+  column 2 tens place
+  digit_a = 12345 % 10 = 5
+  digit_b = 65432 % 10 = 2
+  column_sum = 5 + 2 + 0 = 7
+  carry = 7 // 10 = 0 so no carry
+  write = 7 % 10 = 7
+  result_digits = [7, 7]
+  a = 12345 // 10 = 1234
+  b = 65432 // 10 = 6543
+  column 3 hundreds place
+  digit_a = 1234 % 10 = 4
+  digit_b = 6543 % 10 = 3
+  column_sum = 4 + 3 + 0 = 7
+  carry = 7 // 10 = 0 so no carry
+  write = 7 % 10 = 7
+  result_digits = [7, 7, 7]
+  a = 1234 // 10 = 123
+  b = 6543 // 10 = 654
+  column 4 thousands place
+  digit_a = 123 % 10 = 3
+  digit_b = 654 % 10 = 4
+  column_sum = 3 + 4 + 0 = 7
+  carry = 7 // 10 = 0 so no carry
+  write = 7 % 10 = 7
+  result_digits = [7, 7, 7, 7]
+  a = 123 // 10 = 12
+  b = 654 // 10 = 65
+  column 5 ten-thousands place
+  digit_a = 12 % 10 = 2
+  digit_b = 65 % 10 = 5
+  column_sum = 2 + 5 + 0 = 7
+  carry = 7 // 10 = 0 so no carry
+  write = 7 % 10 = 7
+  result_digits = [7, 7, 7, 7, 7]
+  a = 12 // 10 = 1
+  b = 65 // 10 = 6
+  column 6 hundred-thousands place
+  digit_a = 1 % 10 = 1
+  digit_b = 6 % 10 = 6
+  column_sum = 1 + 6 + 0 = 7
+  carry = 7 // 10 = 0 so no carry
+  write = 7 % 10 = 7
+  result_digits = [7, 7, 7, 7, 7, 7]
+  a = 1 // 10 = 0 so a is exhausted
+  b = 6 // 10 = 0 so b is exhausted
+  loop ends because a=0 and b=0 and carry=0
+  result_digits reversed = [7, 7, 7, 7, 7, 7]
+  result = 777777
+  123456 + 654321 = 777777
+
+cal: add(999999, 1):
+  a = 999999
+  b = 1
+  a > 0 and b > 0 so use digit-by-digit addition with carry
+  carry = 0
+  result_digits = []
+  column 1 ones place
+  digit_a = 999999 % 10 = 9
+  digit_b = 1 % 10 = 1
+  column_sum = 9 + 1 + 0 = 10
+  carry = 10 // 10 = 1 so carry 1 to tens place
+  write = 10 % 10 = 0
+  result_digits = [0]
+  a = 999999 // 10 = 99999
+  b = 1 // 10 = 0 so b is exhausted
+  column 2 tens place
+  digit_a = 99999 % 10 = 9
+  digit_b = 0 % 10 = 0
+  column_sum = 9 + 0 + 1 = 10
+  carry = 10 // 10 = 1 so carry 1 to hundreds place
+  write = 10 % 10 = 0
+  result_digits = [0, 0]
+  a = 99999 // 10 = 9999
+  b = 0 // 10 = 0
+  column 3 hundreds place
+  digit_a = 9999 % 10 = 9
+  digit_b = 0 % 10 = 0
+  column_sum = 9 + 0 + 1 = 10
+  carry = 10 // 10 = 1 so carry 1 to thousands place
+  write = 10 % 10 = 0
+  result_digits = [0, 0, 0]
+  a = 9999 // 10 = 999
+  b = 0 // 10 = 0
+  column 4 thousands place
+  digit_a = 999 % 10 = 9
+  digit_b = 0 % 10 = 0
+  column_sum = 9 + 0 + 1 = 10
+  carry = 10 // 10 = 1 so carry 1 to ten-thousands place
+  write = 10 % 10 = 0
+  result_digits = [0, 0, 0, 0]
+  a = 999 // 10 = 99
+  b = 0 // 10 = 0
+  column 5 ten-thousands place
+  digit_a = 99 % 10 = 9
+  digit_b = 0 % 10 = 0
+  column_sum = 9 + 0 + 1 = 10
+  carry = 10 // 10 = 1 so carry 1 to hundred-thousands place
+  write = 10 % 10 = 0
+  result_digits = [0, 0, 0, 0, 0]
+  a = 99 // 10 = 9
+  b = 0 // 10 = 0
+  column 6 hundred-thousands place
+  digit_a = 9 % 10 = 9
+  digit_b = 0 % 10 = 0
+  column_sum = 9 + 0 + 1 = 10
+  carry = 10 // 10 = 1 so carry 1 to column 7 place
+  write = 10 % 10 = 0
+  result_digits = [0, 0, 0, 0, 0, 0]
+  a = 9 // 10 = 0 so a is exhausted
+  b = 0 // 10 = 0
+  column 7 next place carry is still active
+  column 7 column 7 place
+  digit_a = 0 % 10 = 0
+  digit_b = 0 % 10 = 0
+  column_sum = 0 + 0 + 1 = 1
+  carry = 1 // 10 = 0 so no carry
+  write = 1 % 10 = 1
+  result_digits = [0, 0, 0, 0, 0, 0, 1]
+  a = 0 // 10 = 0
+  b = 0 // 10 = 0
+  loop ends because a=0 and b=0 and carry=0
+  result_digits reversed = [1, 0, 0, 0, 0, 0, 0]
+  result = 1000000
+  999999 + 1 = 1000000
+
+cal: add(500000, 500000):
+  a = 500000
+  b = 500000
+  a > 0 and b > 0 so use digit-by-digit addition with carry
+  carry = 0
+  result_digits = []
+  column 1 ones place
+  digit_a = 500000 % 10 = 0
+  digit_b = 500000 % 10 = 0
+  column_sum = 0 + 0 + 0 = 0
+  carry = 0 // 10 = 0 so no carry
+  write = 0 % 10 = 0
+  result_digits = [0]
+  a = 500000 // 10 = 50000
+  b = 500000 // 10 = 50000
+  column 2 tens place
+  digit_a = 50000 % 10 = 0
+  digit_b = 50000 % 10 = 0
+  column_sum = 0 + 0 + 0 = 0
+  carry = 0 // 10 = 0 so no carry
+  write = 0 % 10 = 0
+  result_digits = [0, 0]
+  a = 50000 // 10 = 5000
+  b = 50000 // 10 = 5000
+  column 3 hundreds place
+  digit_a = 5000 % 10 = 0
+  digit_b = 5000 % 10 = 0
+  column_sum = 0 + 0 + 0 = 0
+  carry = 0 // 10 = 0 so no carry
+  write = 0 % 10 = 0
+  result_digits = [0, 0, 0]
+  a = 5000 // 10 = 500
+  b = 5000 // 10 = 500
+  column 4 thousands place
+  digit_a = 500 % 10 = 0
+  digit_b = 500 % 10 = 0
+  column_sum = 0 + 0 + 0 = 0
+  carry = 0 // 10 = 0 so no carry
+  write = 0 % 10 = 0
+  result_digits = [0, 0, 0, 0]
+  a = 500 // 10 = 50
+  b = 500 // 10 = 50
+  column 5 ten-thousands place
+  digit_a = 50 % 10 = 0
+  digit_b = 50 % 10 = 0
+  column_sum = 0 + 0 + 0 = 0
+  carry = 0 // 10 = 0 so no carry
+  write = 0 % 10 = 0
+  result_digits = [0, 0, 0, 0, 0]
+  a = 50 // 10 = 5
+  b = 50 // 10 = 5
+  column 6 hundred-thousands place
+  digit_a = 5 % 10 = 5
+  digit_b = 5 % 10 = 5
+  column_sum = 5 + 5 + 0 = 10
+  carry = 10 // 10 = 1 so carry 1 to column 7 place
+  write = 10 % 10 = 0
+  result_digits = [0, 0, 0, 0, 0, 0]
+  a = 5 // 10 = 0 so a is exhausted
+  b = 5 // 10 = 0 so b is exhausted
+  column 7 next place carry is still active
+  column 7 column 7 place
+  digit_a = 0 % 10 = 0
+  digit_b = 0 % 10 = 0
+  column_sum = 0 + 0 + 1 = 1
+  carry = 1 // 10 = 0 so no carry
+  write = 1 % 10 = 1
+  result_digits = [0, 0, 0, 0, 0, 0, 1]
+  a = 0 // 10 = 0
+  b = 0 // 10 = 0
+  loop ends because a=0 and b=0 and carry=0
+  result_digits reversed = [1, 0, 0, 0, 0, 0, 0]
+  result = 1000000
+  500000 + 500000 = 1000000
+
+cal: add(-123456, -654321):
+  a = -123456
+  b = -654321
+  a < 0 and b < 0 so add absolute values then negate
+  abs_a = 123456
+  abs_b = 654321
+  compute add(123456, 654321)
+  column 1 ones place
+  digit_a = 123456 % 10 = 6
+  digit_b = 654321 % 10 = 1
+  column_sum = 6 + 1 + 0 = 7
+  carry = 7 // 10 = 0 so no carry
+  write = 7 % 10 = 7
+  result_digits = [7]
+  a = 123456 // 10 = 12345
+  b = 654321 // 10 = 65432
+  column 2 tens place
+  digit_a = 12345 % 10 = 5
+  digit_b = 65432 % 10 = 2
+  column_sum = 5 + 2 + 0 = 7
+  carry = 7 // 10 = 0 so no carry
+  write = 7 % 10 = 7
+  result_digits = [7, 7]
+  a = 12345 // 10 = 1234
+  b = 65432 // 10 = 6543
+  column 3 hundreds place
+  digit_a = 1234 % 10 = 4
+  digit_b = 6543 % 10 = 3
+  column_sum = 4 + 3 + 0 = 7
+  carry = 7 // 10 = 0 so no carry
+  write = 7 % 10 = 7
+  result_digits = [7, 7, 7]
+  a = 1234 // 10 = 123
+  b = 6543 // 10 = 654
+  column 4 thousands place
+  digit_a = 123 % 10 = 3
+  digit_b = 654 % 10 = 4
+  column_sum = 3 + 4 + 0 = 7
+  carry = 7 // 10 = 0 so no carry
+  write = 7 % 10 = 7
+  result_digits = [7, 7, 7, 7]
+  a = 123 // 10 = 12
+  b = 654 // 10 = 65
+  column 5 ten-thousands place
+  digit_a = 12 % 10 = 2
+  digit_b = 65 % 10 = 5
+  column_sum = 2 + 5 + 0 = 7
+  carry = 7 // 10 = 0 so no carry
+  write = 7 % 10 = 7
+  result_digits = [7, 7, 7, 7, 7]
+  a = 12 // 10 = 1
+  b = 65 // 10 = 6
+  column 6 hundred-thousands place
+  digit_a = 1 % 10 = 1
+  digit_b = 6 % 10 = 6
+  column_sum = 1 + 6 + 0 = 7
+  carry = 7 // 10 = 0 so no carry
+  write = 7 % 10 = 7
+  result_digits = [7, 7, 7, 7, 7, 7]
+  a = 1 // 10 = 0 so a is exhausted
+  b = 6 // 10 = 0 so b is exhausted
+  loop ends because a=0 and b=0 and carry=0
+  result_digits reversed = [7, 7, 7, 7, 7, 7]
+  add(123456, 654321) = 777777
+  both a and b were negative so negate the result
+  result = -777777
+  -123456 + -654321 = -777777
+
+cal: add(-999999, 999999):
+  a = -999999
+  b = 999999
+  a < 0 and b > 0 so subtract smaller absolute value from larger and keep sign of larger
+  abs_a = 999999
+  abs_b = 999999
+  abs_a == abs_b so equal magnitudes with opposite signs cancel out
+  result = 0
+  -999999 + 999999 = 0
+
+cal: add(1000000, -999999):
+  a = 1000000
+  b = -999999
+  a > 0 and b < 0 so subtract smaller absolute value from larger and keep sign of larger
+  abs_a = 1000000
+  abs_b = 999999
+  abs_a > abs_b so a has larger magnitude and result will be positive
+  compute subtract(1000000, 999999)
+  borrow = 0
+  result_digits = []
+  column 1 ones place
+  digit_a = 1000000 % 10 = 0
+  digit_b = 999999 % 10 = 9
+  diff = 0 - 9 - 0 = -9
+  diff < 0 so borrow 10 from tens place
+  diff = -9 + 10 = 1
+  borrow = 1
+  result_digits = [1]
+  a = 1000000 // 10 = 100000
+  b = 999999 // 10 = 99999
+  column 2 tens place
+  digit_a = 100000 % 10 = 0
+  digit_b = 99999 % 10 = 9
+  diff = 0 - 9 - 1 = -10 where the -1 is the borrow from column 1
+  diff < 0 so borrow 10 from hundreds place
+  diff = -10 + 10 = 0
+  borrow = 1
+  result_digits = [1, 0]
+  a = 100000 // 10 = 10000
+  b = 99999 // 10 = 9999
+  column 3 hundreds place
+  digit_a = 10000 % 10 = 0
+  digit_b = 9999 % 10 = 9
+  diff = 0 - 9 - 1 = -10 where the -1 is the borrow from column 2
+  diff < 0 so borrow 10 from thousands place
+  diff = -10 + 10 = 0
+  borrow = 1
+  result_digits = [1, 0, 0]
+  a = 10000 // 10 = 1000
+  b = 9999 // 10 = 999
+  column 4 thousands place
+  digit_a = 1000 % 10 = 0
+  digit_b = 999 % 10 = 9
+  diff = 0 - 9 - 1 = -10 where the -1 is the borrow from column 3
+  diff < 0 so borrow 10 from ten-thousands place
+  diff = -10 + 10 = 0
+  borrow = 1
+  result_digits = [1, 0, 0, 0]
+  a = 1000 // 10 = 100
+  b = 999 // 10 = 99
+  column 5 ten-thousands place
+  digit_a = 100 % 10 = 0
+  digit_b = 99 % 10 = 9
+  diff = 0 - 9 - 1 = -10 where the -1 is the borrow from column 4
+  diff < 0 so borrow 10 from hundred-thousands place
+  diff = -10 + 10 = 0
+  borrow = 1
+  result_digits = [1, 0, 0, 0, 0]
+  a = 100 // 10 = 10
+  b = 99 // 10 = 9
+  column 6 hundred-thousands place
+  digit_a = 10 % 10 = 0
+  digit_b = 9 % 10 = 9
+  diff = 0 - 9 - 1 = -10 where the -1 is the borrow from column 5
+  diff < 0 so borrow 10 from next place
+  diff = -10 + 10 = 0
+  borrow = 1
+  result_digits = [1, 0, 0, 0, 0, 0]
+  a = 10 // 10 = 1
+  b = 9 // 10 = 0 so b is exhausted
+  column 7 column 7 place
+  digit_a = 1 % 10 = 1
+  digit_b = 0 % 10 = 0
+  diff = 1 - 0 - 1 = 0 where the -1 is the borrow from column 6
+  diff >= 0 so no borrow
+  borrow = 0
+  result_digits = [1, 0, 0, 0, 0, 0, 0]
+  a = 1 // 10 = 0 so a is exhausted
+  b = 0 // 10 = 0
+  loop ends
+  result_digits reversed = [1]
+  subtract(1000000, 999999) = 1
+  a had larger magnitude and a was positive so result is positive
+  result = 1
+  1000000 + -999999 = 1
