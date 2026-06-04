@@ -1,0 +1,10 @@
+python train.py \
+  --dataset=arithmetic_char \
+  --n_layer=4 \
+  --n_head=4 \
+  --n_embd=128 \
+  --block_size=256 \
+  --max_iters=5000 \
+  --batch_size=16 \
+  --learning_rate=1e-3 \
+  --dropout=0.1
