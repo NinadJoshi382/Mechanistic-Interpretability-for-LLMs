@@ -24,29 +24,37 @@ Keys recognised by this configurator come from train.py's config block:
 """
 
 import sys
+import os
 from ast import literal_eval
 
 for arg in sys.argv[1:]:
     if '=' not in arg:
-        # assume it's the name of a config file
-        assert not arg.startswith('--'), \
-            f"Expected a config file path (no '--') but got: {arg}"
+        # Tokens without '=' are either a config file path or a bare flag
+        # injected by torchrun / the shell (e.g. the script name itself).
+        # Skip anything that starts with '--' so we never crash on launcher
+        # arguments that don't belong to us.
+        if arg.startswith('--'):
+            continue
         config_file = arg
+        # Resolve relative to cwd so the user can pass either an absolute path
+        # or a path relative to where they launched train.py from.
+        config_file = os.path.realpath(config_file)
         print(f"Overriding config with {config_file}:")
         with open(config_file) as f:
             print(f.read())
         exec(open(config_file).read())
     else:
-        # assume it's a --key=value argument
-        assert arg.startswith('--'), \
-            f"Expected '--key=value' syntax but got: {arg}"
+        # Tokens with '=' that don't start with '--' (e.g. env vars forwarded
+        # by some launchers) are not ours — skip them silently.
+        if not arg.startswith('--'):
+            continue
 
         # split only on the first '=' so values like --name=a=b work fine
         key, val = arg.split('=', 1)
         key = key[2:]  # strip the leading '--'
 
         if key not in globals():
-            # CHANGED: print all valid keys so the user knows what is available
+            # Show all valid keys so the user knows what is available
             valid = sorted(
                 k for k, v in globals().items()
                 if not k.startswith('_') and isinstance(v, (int, float, bool, str))
@@ -61,26 +69,23 @@ for arg in sys.argv[1:]:
         try:
             attempt = literal_eval(val)
         except (SyntaxError, ValueError):
-            # could not parse as a Python literal — treat as a plain string
+            # Could not parse as a Python literal — treat as a plain string.
             attempt = val
 
-        # CHANGED: relax the strict type identity check.
-        # The original check (type(attempt) == type(globals()[key])) rejected
-        # valid cases such as:
+        # Relax the strict type-identity check from the original configurator.
+        # The original type(attempt) == type(globals()[key]) rejected valid cases:
         #   --learning_rate=1   (int literal, but key is float)
         #   --min_lr=0          (int literal 0, but key is float 6e-5)
-        # We now allow int -> float coercion and keep the strict check for
-        # everything else (bool, str, remaining int keys).
+        # We allow int -> float coercion and keep strict checking for everything else.
         if expected_type == float and isinstance(attempt, int):
-            # silently coerce: --learning_rate=1  ->  1.0
             attempt = float(attempt)
 
         if not isinstance(attempt, expected_type):
             raise TypeError(
                 f"Config key '{key}' expects type {expected_type.__name__} "
                 f"but received {type(attempt).__name__} (value: {val!r}).\n"
-                f"Hint: booleans must be True/False, strings need no quotes on "
-                f"the command line (they are inferred automatically)."
+                f"Hint: booleans must be True/False (e.g. --compile=False). "
+                f"Strings are inferred automatically without quotes."
             )
 
         print(f"Overriding: {key} = {attempt}")
