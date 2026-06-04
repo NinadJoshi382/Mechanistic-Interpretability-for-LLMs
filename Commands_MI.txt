@@ -105,13 +105,36 @@ generated_text = decode(output_ids[0].tolist())
 print(generated_text)
 
 
+############################
 
+# Cell: Inspect meta.pkl vocab
+import pickle
 
+META_PATH = "data/shakespeare_char/meta.pkl"  # update path as needed
 
+with open(META_PATH, 'rb') as f:
+    meta = pickle.load(f)
 
+print(f"Vocab size : {meta['vocab_size']}")
+print(f"Keys in meta: {list(meta.keys())}")
 
+stoi = meta['stoi']  # string → index
+itos = meta['itos']  # index → string
 
+# ── Full vocab ──────────────────────────────────────────────────────────────
+print("\n── Full Vocabulary ──")
+print(f"{'Index':<8} {'Char'}")
+print("─" * 20)
+for idx, char in sorted(itos.items()):
+    display = repr(char)  # shows \n, \t etc. clearly instead of raw whitespace
+    print(f"{idx:<8} {display}")
 
-
-
+# ── Quick lookup ─────────────────────────────────────────────────────────────
+print("\n── Quick Lookup ──")
+WORD = "hello"
+for char in WORD:
+    if char in stoi:
+        print(f"  '{char}' → index {stoi[char]}")
+    else:
+        print(f"  '{char}' → NOT in vocab")
 
