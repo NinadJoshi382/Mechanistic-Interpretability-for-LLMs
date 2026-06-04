@@ -1,0 +1,444 @@
+def fun_1(a, b):
+    return a + b
+
+def fun_2(a, b, c):
+    return a + b + c
+
+def fun_3(a, b, c, d):
+    return a + b + c + d
+
+def fun_4(numbers):
+    total = 0
+    for num in numbers:
+        total += num
+    return total
+
+def fun_5(a, b):
+    return a + b + 0
+
+def fun_6(a):
+    return a + 0
+
+def fun_7(a, b):
+    return (a + b) * 1
+
+def fun_8(a, b):
+    result = 0
+    result += a
+    result += b
+    return result
+
+def fun_9(a, b, c, d, e):
+    return a + b + c + d + e
+
+def fun_10(numbers):
+    return sum(numbers)
+
+def fun_11(a, b):
+    return a - b
+
+def fun_12(a, b, c):
+    return a - b - c
+
+def fun_13(a):
+    return 100 - a
+
+def fun_14(a):
+    return 0 - a
+
+def fun_15(numbers):
+    result = numbers[0]
+    for num in numbers[1:]:
+        result -= num
+    return result
+
+def fun_16(a, b):
+    return b - a
+
+def fun_17(a, b):
+    result = a
+    result -= b
+    return result
+
+def fun_18(a, b, c, d):
+    return a - b - c - d
+
+def fun_19(a):
+    return a - 1
+
+def fun_20(a):
+    return a - 100
+
+def fun_21(a, b):
+    return a * b
+
+def fun_22(a, b, c):
+    return a * b * c
+
+def fun_23(a):
+    return a * a
+
+def fun_24(a):
+    return a * a * a
+
+def fun_25(numbers):
+    result = 1
+    for num in numbers:
+        result *= num
+    return result
+
+def fun_26(a, b):
+    return 2 * a + 2 * b
+
+def fun_27(a, b):
+    result = 0
+    for _ in range(b):
+        result += a
+    return result
+
+def fun_28(a):
+    return a * 2
+
+def fun_29(a):
+    return a * 3
+
+def fun_30(a, b, c, d):
+    return a * b * c * d
+
+def fun_31(a, b):
+    if b == 0:
+        raise ValueError("Cannot divide by zero")
+    return a / b
+
+def fun_32(a, b):
+    if b == 0:
+        raise ValueError("Cannot divide by zero")
+    return a // b
+
+def fun_33(a, b, default=0):
+    if b == 0:
+        return default
+    return a / b
+
+def fun_34(a):
+    if a == 0:
+        raise ValueError("Cannot divide by zero")
+    return 1 / a
+
+def fun_35(a, b):
+    if b == 0:
+        raise ValueError("Cannot divide by zero")
+    return a % b
+
+def fun_36(a, b):
+    if b == 0:
+        raise ValueError("Cannot divide by zero")
+    quotient = a // b
+    remainder = a % b
+    return quotient, remainder
+
+def fun_37(a):
+    return a / 2
+
+def fun_38(a):
+    return a / 3
+
+def fun_39(a):
+    return a / 10
+
+def fun_40(a, b):
+    if b == 0:
+        raise ValueError("Cannot divide by zero")
+    return float(a) / float(b)
+
+def fun_41(numbers):
+    if len(numbers) == 0:
+        raise ValueError("List is empty")
+    return sum(numbers) / len(numbers)
+
+def fun_42(a, b):
+    return (a + b) / 2
+
+def fun_43(a, b, c):
+    return (a + b + c) / 3
+
+def fun_44(numbers):
+    if len(numbers) == 0:
+        raise ValueError("List is empty")
+    total = 0
+    for num in numbers:
+        total += num
+    return total / len(numbers)
+
+def fun_45(a, b, c, d):
+    return (a + b + c + d) / 4
+
+def fun_46(base, exp):
+    result = 1
+    for _ in range(exp):
+        result *= base
+    return result
+
+def fun_47(a):
+    return a * a
+
+def fun_48(a):
+    return a * a * a
+
+def fun_49(base, exp):
+    if exp == 0:
+        return 1
+    if exp < 0:
+        return 1 / fun_49(base, -exp)
+    result = 1
+    for _ in range(exp):
+        result *= base
+    return result
+
+def fun_50(a):
+    return a ** 0.5
+
+def fun_51(a, b):
+    result = a - b
+    if result < 0:
+        result = -result
+    return result
+
+def fun_52(a):
+    if a < 0:
+        return -a
+    return a
+
+def fun_53(a, b):
+    if a > b:
+        return a - b
+    return b - a
+
+def fun_54(a, b):
+    if a >= b:
+        return a
+    return b
+
+def fun_55(a, b):
+    if a <= b:
+        return a
+    return b
+
+def fun_56(a, b, c):
+    if a >= b and a >= c:
+        return a
+    if b >= a and b >= c:
+        return b
+    return c
+
+def fun_57(a, b, c):
+    if a <= b and a <= c:
+        return a
+    if b <= a and b <= c:
+        return b
+    return c
+
+def fun_58(n):
+    if n < 0:
+        raise ValueError("n must be non-negative")
+    result = 1
+    for i in range(2, n + 1):
+        result *= i
+    return result
+
+def fun_59(n):
+    if n < 0:
+        raise ValueError("n must be non-negative")
+    if n == 0 or n == 1:
+        return 1
+    result = 1
+    i = 2
+    while i <= n:
+        result *= i
+        i += 1
+    return result
+
+def fun_60(n):
+    if n < 0:
+        raise ValueError("n must be non-negative")
+    result = 1
+    for i in range(1, n + 1):
+        result *= i
+    return result
+
+def fun_61(a, b):
+    while b != 0:
+        a, b = b, a % b
+    return a
+
+def fun_62(a, b):
+    if a == 0 or b == 0:
+        return 0
+    gcd = fun_61(a, b)
+    return abs(a * b) // gcd
+
+def fun_63(a, b):
+    result = 0
+    while b > 0:
+        result += a
+        b -= 1
+    return result
+
+def fun_64(a, b):
+    if b == 0:
+        raise ValueError("Cannot divide by zero")
+    count = 0
+    while a >= b:
+        a -= b
+        count += 1
+    return count
+
+def fun_65(n):
+    result = 0
+    for i in range(1, n + 1):
+        result += i
+    return result
+
+def fun_66(n):
+    return n * (n + 1) // 2
+
+def fun_67(n):
+    result = 0
+    for i in range(1, n + 1):
+        result += i * i
+    return result
+
+def fun_68(a, b):
+    return a + b - fun_55(a, b)
+
+def fun_69(a, b):
+    return a + b - fun_54(a, b)
+
+def fun_70(a, b):
+    return a * b + a + b + 1
+
+def fun_71(numbers):
+    if len(numbers) == 0:
+        raise ValueError("List is empty")
+    total = 0
+    for num in numbers:
+        total += num * num
+    return total
+
+def fun_72(numbers):
+    if len(numbers) == 0:
+        raise ValueError("List is empty")
+    mean = fun_41(numbers)
+    variance = 0
+    for num in numbers:
+        variance += (num - mean) ** 2
+    return variance / len(numbers)
+
+def fun_73(a, b, c):
+    return a * b + b * c + a * c
+
+def fun_74(a, b):
+    return a * a + 2 * a * b + b * b
+
+def fun_75(a, b):
+    return a * a - 2 * a * b + b * b
+
+def fun_76(a, b):
+    return a * a - b * b
+
+def fun_77(a, b, c):
+    discriminant = b * b - 4 * a * c
+    return discriminant
+
+def fun_78(a, b):
+    return a * a + b * b
+
+def fun_79(a, b):
+    return (a * a + b * b) ** 0.5
+
+def fun_80(a, b, c):
+    return a + b + c
+
+def fun_81(a, b, c):
+    return (a + b + c) / 3
+
+def fun_82(a, b):
+    return 2 * (a + b)
+
+def fun_83(a, b):
+    return a * b
+
+def fun_84(r):
+    pi = 3.141592653589793
+    return 2 * pi * r
+
+def fun_85(r):
+    pi = 3.141592653589793
+    return pi * r * r
+
+def fun_86(a, b, h):
+    return (a + b) * h / 2
+
+def fun_87(a, h):
+    return 0.5 * a * h
+
+def fun_88(a):
+    return a * a
+
+def fun_89(a):
+    return 6 * a * a
+
+def fun_90(a):
+    return a * a * a
+
+def fun_91(a, b):
+    return a % b == 0
+
+def fun_92(a):
+    return a % 2 == 0
+
+def fun_93(a):
+    return a % 2 != 0
+
+def fun_94(a, b):
+    if b == 0:
+        raise ValueError("Cannot divide by zero")
+    return a % b
+
+def fun_95(a, b):
+    if b == 0:
+        raise ValueError("Cannot divide by zero")
+    return a - (a // b) * b
+
+def fun_96(numbers):
+    if len(numbers) == 0:
+        raise ValueError("List is empty")
+    maximum = numbers[0]
+    for num in numbers[1:]:
+        if num > maximum:
+            maximum = num
+    return maximum
+
+def fun_97(numbers):
+    if len(numbers) == 0:
+        raise ValueError("List is empty")
+    minimum = numbers[0]
+    for num in numbers[1:]:
+        if num < minimum:
+            minimum = num
+    return minimum
+
+def fun_98(numbers):
+    return fun_96(numbers) - fun_97(numbers)
+
+def fun_99(a, b, c):
+    total = a + b + c
+    if a == 0:
+        raise ValueError("Cannot divide by zero")
+    return b / a - c
+
+def fun_100(a, b):
+    if b == 0:
+        raise ValueError("Cannot divide by zero")
+    return (a // b, a % b)
+
