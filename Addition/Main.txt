@@ -1,1 +1,2 @@
 
+python train.py config/train_addition.py
