@@ -1,0 +1,33 @@
+# I/O
+out_dir = 'out-addition'
+eval_interval = 1000          # evaluate AND checkpoint every 1000 iterations
+always_save_checkpoint = True  # save checkpoint at every eval, not just on val loss improvement
+eval_iters = 40
+log_interval = 10
+
+# data
+dataset = 'addition'
+block_size = 64
+batch_size = 64
+gradient_accumulation_steps = 1
+
+# model
+n_layer = 4
+n_head = 4
+n_embd = 128
+dropout = 0.0
+bias = False
+
+# training
+init_from = 'scratch'
+max_iters = 5000
+lr_decay_iters = 5000
+learning_rate = 1e-3
+min_lr = 1e-4
+warmup_iters = 100
+weight_decay = 1e-1
+beta2 = 0.99
+
+# system
+device = 'cuda'
+compile = True
