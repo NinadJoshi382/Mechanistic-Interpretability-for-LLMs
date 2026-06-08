@@ -1,0 +1,53 @@
+import torch, glob, os
+from clt_forge.clt import CLT
+
+# load_from_pretrained expects a directory containing:
+#   clt_cfg.json + clt_weights.safetensors
+# Find the latest checkpoint directory that has both files
+ckpt_dirs = sorted([
+    d for d in glob.glob(os.path.join(CLT_CHECKPOINT_DIR, "**"), recursive=True)
+    if os.path.isdir(d)
+    and os.path.exists(os.path.join(d, "clt_cfg.json"))
+    and os.path.exists(os.path.join(d, "clt_weights.safetensors"))
+])
+
+if not ckpt_dirs:
+    raise FileNotFoundError(
+        f"No valid CLT checkpoint found under {CLT_CHECKPOINT_DIR}. "
+        "Make sure Cell 10 completed successfully."
+    )
+
+BEST_CHECKPOINT = ckpt_dirs[-1]
+print(f"Loading CLT from: {BEST_CHECKPOINT}")
+
+clt_model = CLT.load_from_pretrained(BEST_CHECKPOINT, device=DEVICE)
+clt_model.eval()
+print("CLT loaded successfully.")
+
+# Evaluate reconstruction quality
+eval_tokens = torch.randint(0, VOCAB_SIZE, (4, CONTEXT_SIZE), device=DEVICE)
+
+with torch.no_grad():
+    _, cache = tl_model.run_with_cache(
+        eval_tokens,
+        names_filter=lambda n: "mlp" in n and ("hook_pre" in n or "hook_post" in n)
+    )
+
+mlp_inputs  = [cache[f"blocks.{L}.mlp.hook_pre"]  for L in range(N_LAYER)]
+mlp_outputs = [cache[f"blocks.{L}.mlp.hook_post"] for L in range(N_LAYER)]
+
+with torch.no_grad():
+    clt_recons = clt_model.forward(mlp_inputs)
+
+print("\nPer-layer explained variance (1.0 = perfect):")
+total_ev = 0.0
+for L in range(N_LAYER):
+    target = mlp_outputs[L].float()
+    pred   = clt_recons[L].float()
+    ss_res = ((target - pred) ** 2).sum().item()
+    ss_tot = ((target - target.mean()) ** 2).sum().item()
+    ev = 1.0 - ss_res / (ss_tot + 1e-8)
+    total_ev += ev
+    bar = '#' * int(max(0, ev) * 30)
+    print(f"  Layer {L}: {ev:.4f}  |{bar:<30}|")
+print(f"\n  Mean EV: {total_ev / N_LAYER:.4f}")
