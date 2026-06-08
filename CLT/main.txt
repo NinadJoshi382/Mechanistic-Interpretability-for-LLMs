@@ -1,1 +1,95 @@
 
+import torch
+from transformer_lens import HookedTransformer, HookedTransformerConfig
+
+# Build TransformerLens config from checkpoint-derived values
+tl_cfg = HookedTransformerConfig(
+   n_layers           = N_LAYER,
+   d_model            = N_EMBD,
+   n_heads            = N_HEAD,
+   d_head             = N_EMBD // N_HEAD,
+   d_mlp              = 4 * N_EMBD,
+   n_ctx              = BLOCK_SIZE,
+   d_vocab            = VOCAB_SIZE,
+   act_fn             = "gelu_new",
+   normalization_type = "LN",
+   tokenizer_name     = TL_TOKENIZER_NAME,   # None for custom vocab, 'gpt2' for BPE
+   device             = "cpu",
+   attn_only          = False,
+)
+
+def convert_nanogpt_weights(sd: dict, cfg: HookedTransformerConfig) -> dict:
+   """
+   Remap a NanoGPT state_dict to the TransformerLens HookedTransformer format.
+   Handles the QKV split, Conv1D transpose, per-head reshaping, and
+   missing biases when the model was trained with bias=False.
+   """
+   tl = {}
+   d  = cfg.d_model
+   nh = cfg.n_heads
+   dh = cfg.d_head
+
+   # Token + position embeddings (weights always exist)
+   tl["embed.W_E"]       = sd["transformer.wte.weight"]
+   tl["pos_embed.W_pos"] = sd["transformer.wpe.weight"]
+
+   # Final LayerNorm
+   tl["ln_final.w"] = sd["transformer.ln_f.weight"]
+   tl["ln_final.b"] = sd.get("transformer.ln_f.bias", torch.zeros(cfg.d_model))
+
+   # Unembed head — NanoGPT ties lm_head.weight == wte.weight by default
+   lm_w = sd.get("lm_head.weight", sd["transformer.wte.weight"])
+   tl["unembed.W_U"] = lm_w.T                     # (d, vocab)
+   tl["unembed.b_U"] = torch.zeros(cfg.d_vocab)
+
+   for L in range(cfg.n_layers):
+       p = f"transformer.h.{L}"
+
+       # LayerNorm 1 (before attention)
+       tl[f"blocks.{L}.ln1.w"] = sd[f"{p}.ln_1.weight"]
+       tl[f"blocks.{L}.ln1.b"] = sd.get(f"{p}.ln_1.bias", torch.zeros(cfg.d_model))
+
+       # ── Attention QKV ──────────────────────────────────────────────────
+       # NanoGPT Conv1D stores (out_features, in_features)
+       # c_attn.weight: (3*d, d)  ->  split into Q, K, V each (d, d)
+       c_attn_w = sd[f"{p}.attn.c_attn.weight"]                        # (3d, d)
+       c_attn_b = sd.get(f"{p}.attn.c_attn.bias", torch.zeros(3 * d)) # (3d,)
+
+       W_Q_flat, W_K_flat, W_V_flat = c_attn_w.split(d, dim=0)
+       b_Q_flat, b_K_flat, b_V_flat = c_attn_b.split(d, dim=0)
+
+       # Reshape to (n_heads, d_model, d_head)
+       tl[f"blocks.{L}.attn.W_Q"] = W_Q_flat.T.reshape(d, nh, dh).permute(1, 0, 2)
+       tl[f"blocks.{L}.attn.W_K"] = W_K_flat.T.reshape(d, nh, dh).permute(1, 0, 2)
+       tl[f"blocks.{L}.attn.W_V"] = W_V_flat.T.reshape(d, nh, dh).permute(1, 0, 2)
+
+       tl[f"blocks.{L}.attn.b_Q"] = b_Q_flat.reshape(nh, dh)
+       tl[f"blocks.{L}.attn.b_K"] = b_K_flat.reshape(nh, dh)
+       tl[f"blocks.{L}.attn.b_V"] = b_V_flat.reshape(nh, dh)
+
+       # ── Attention output projection ─────────────────────────────────────
+       # c_proj.weight: (d, d) in Conv1D layout — TL W_O: (n_heads, d_head, d_model)
+       c_proj_w = sd[f"{p}.attn.c_proj.weight"]
+       c_proj_b = sd.get(f"{p}.attn.c_proj.bias", torch.zeros(cfg.d_model))
+       tl[f"blocks.{L}.attn.W_O"] = c_proj_w.T.reshape(nh, dh, d)
+       tl[f"blocks.{L}.attn.b_O"] = c_proj_b
+
+       # LayerNorm 2 (before MLP)
+       tl[f"blocks.{L}.ln2.w"] = sd[f"{p}.ln_2.weight"]
+       tl[f"blocks.{L}.ln2.b"] = sd.get(f"{p}.ln_2.bias", torch.zeros(cfg.d_model))
+
+       # ── MLP ─────────────────────────────────────────────────────────────
+       # NanoGPT Conv1D: c_fc.weight (4d, d), c_proj.weight (d, 4d)
+       # TL convention: W_in (d, 4d), W_out (4d, d)
+       tl[f"blocks.{L}.mlp.W_in"]  = sd[f"{p}.mlp.c_fc.weight"].T
+       tl[f"blocks.{L}.mlp.b_in"]  = sd.get(f"{p}.mlp.c_fc.bias",   torch.zeros(cfg.d_mlp))
+       tl[f"blocks.{L}.mlp.W_out"] = sd[f"{p}.mlp.c_proj.weight"].T
+       tl[f"blocks.{L}.mlp.b_out"] = sd.get(f"{p}.mlp.c_proj.bias", torch.zeros(cfg.d_model))
+
+   return tl
+
+
+print("Converting weights...")
+tl_state_dict = convert_nanogpt_weights(raw_sd, tl_cfg)
+print(f"Converted {len(tl_state_dict)} parameter tensors.")
+print("Sample keys:", list(tl_state_dict.keys())[:8])
