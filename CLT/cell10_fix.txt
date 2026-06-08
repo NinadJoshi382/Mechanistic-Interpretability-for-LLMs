@@ -1,0 +1,47 @@
+import glob, os
+from clt_forge.clt_training_runner import CLTTrainingRunner
+from clt_forge.utils import DummyModel
+from types import SimpleNamespace
+
+# CLTTrainingRunner uses AutoConfig.from_pretrained(model_name) to get n_layers
+# when cached_activations_path is set. For a custom NanoGPT this would pull
+# GPT-2's 12 layers instead of your actual 4. We patch it by pre-building
+# a DummyModel with the correct n_layers and monkey-patching the runner.
+
+print("Initialising CLTTrainingRunner...")
+trainer = CLTTrainingRunner(cfg)
+
+# Override the model with the correct layer count from your checkpoint
+trainer.model = DummyModel(
+    cfg=SimpleNamespace(
+        n_layers   = N_LAYER,        # 4 — read from your checkpoint in Cell 4
+        use_hook_mlp_in = True,
+    )
+)
+
+# Re-create the CLT with the correct n_layers
+from clt_forge.clt import CLT
+from clt_forge.config import CLTConfig
+
+trainer.clt = CLT(
+    cfg.create_sub_config(CLTConfig, n_layers=N_LAYER),
+    rank=0,
+    world_size=1,
+).to(DEVICE)
+
+trainer.update_clt_norm_scaling_factor()
+
+print(f"CLT created with n_layers={N_LAYER}, d_latent={cfg.d_latent}")
+print("Starting training...")
+
+trainer.run()
+
+print("\nCLT training complete!")
+
+checkpoints = sorted(glob.glob(os.path.join(CLT_CHECKPOINT_DIR, "**/*.safetensors"), recursive=True))
+if checkpoints:
+    BEST_CHECKPOINT = str(os.path.dirname(checkpoints[-1]))
+    print(f"Latest checkpoint : {BEST_CHECKPOINT}")
+else:
+    print("WARNING: No checkpoint files found — check checkpoint_path in config.")
+    BEST_CHECKPOINT = CLT_CHECKPOINT_DIR
