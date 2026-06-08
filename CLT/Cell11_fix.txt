@@ -1,9 +1,7 @@
 import torch, glob, os
 from clt_forge.clt import CLT
 
-# load_from_pretrained expects a directory containing:
-#   clt_cfg.json + clt_weights.safetensors
-# Find the latest checkpoint directory that has both files
+# ── Find the latest valid checkpoint directory ─────────────────────────────────
 ckpt_dirs = sorted([
     d for d in glob.glob(os.path.join(CLT_CHECKPOINT_DIR, "**"), recursive=True)
     if os.path.isdir(d)
@@ -24,7 +22,7 @@ clt_model = CLT.load_from_pretrained(BEST_CHECKPOINT, device=DEVICE)
 clt_model.eval()
 print("CLT loaded successfully.")
 
-# Evaluate reconstruction quality
+# ── Run a small eval batch through the frozen base model ───────────────────────
 eval_tokens = torch.randint(0, VOCAB_SIZE, (4, CONTEXT_SIZE), device=DEVICE)
 
 with torch.no_grad():
@@ -33,16 +31,29 @@ with torch.no_grad():
         names_filter=lambda n: "mlp" in n and ("hook_pre" in n or "hook_post" in n)
     )
 
+# cache gives [batch, seq, d_in] per layer
+# forward_eval expects [B, N_layers, d_in] where B = batch * seq
 mlp_inputs  = [cache[f"blocks.{L}.mlp.hook_pre"]  for L in range(N_LAYER)]
 mlp_outputs = [cache[f"blocks.{L}.mlp.hook_post"] for L in range(N_LAYER)]
 
-with torch.no_grad():
-    clt_recons = clt_model.forward(mlp_inputs)
+# Stack layers → [batch, seq, N_layers, d_in] → flatten → [batch*seq, N_layers, d_in]
+B, S = eval_tokens.shape
+act_in  = torch.stack(mlp_inputs,  dim=2).view(B * S, N_LAYER, N_EMBD).to(DEVICE)
+act_out = torch.stack(mlp_outputs, dim=2).view(B * S, N_LAYER, N_EMBD).to(DEVICE)
 
+# ── Get CLT reconstruction ─────────────────────────────────────────────────────
+with torch.no_grad():
+    recon = clt_model.forward_eval(act_in)   # [B*S, N_layers, d_in]
+
+# Split back into per-layer tensors for EV calculation
+clt_recons = [recon[:, L, :] for L in range(N_LAYER)]
+act_out_per_layer = [act_out[:, L, :] for L in range(N_LAYER)]
+
+# ── Per-layer explained variance ───────────────────────────────────────────────
 print("\nPer-layer explained variance (1.0 = perfect):")
 total_ev = 0.0
 for L in range(N_LAYER):
-    target = mlp_outputs[L].float()
+    target = act_out_per_layer[L].float()
     pred   = clt_recons[L].float()
     ss_res = ((target - pred) ** 2).sum().item()
     ss_tot = ((target - target.mean()) ** 2).sum().item()
