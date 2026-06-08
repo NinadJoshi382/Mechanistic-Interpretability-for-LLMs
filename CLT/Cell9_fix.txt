@@ -1,0 +1,59 @@
+import os, glob
+from clt_forge import ActivationsStore
+from clt_forge.config import CLTTrainingRunnerConfig
+
+existing = [f for f in os.listdir(CACHED_ACTIVATIONS_DIR)
+            if f.endswith(".safetensors") or f.endswith(".bin")]
+
+if existing:
+    print(f"Found {len(existing)} cached activation files — skipping generation.")
+    print("Delete the contents of", CACHED_ACTIVATIONS_DIR, "to regenerate.")
+else:
+    print(f"Generating activations for {TOTAL_TRAINING_TOKENS:,} tokens...")
+
+    # ── Generation config — NO cached_activations_path ────────────────────────
+    # The constructor reads cached_activations_path on init. If it is set,
+    # it tries to LOAD files immediately (which don't exist yet).
+    # So we use a separate config with cached_activations_path=None for generation.
+    gen_cfg = CLTTrainingRunnerConfig(
+        distributed_setup           = "None",
+        device                      = DEVICE,
+        dtype                       = "float32",
+        seed                        = 42,
+        model_name                  = TL_TOKENIZER_NAME or "gpt2",
+        d_in                        = N_EMBD,
+        expansion_factor            = EXPANSION_FACTOR,
+        dataset_path                = DATASET_PATH,
+        disk                        = DISK,
+        context_size                = CONTEXT_SIZE,
+        cached_activations_path     = None,          # <-- must be None during generation
+        n_batches_in_buffer         = 20,
+        store_batch_size_prompts    = 32,
+        train_batch_size_tokens     = TRAIN_BATCH_SIZE_TOKENS,
+        gradient_accumulation_steps = GRAD_ACCUM_STEPS,
+        total_training_tokens       = TOTAL_TRAINING_TOKENS,
+        lr                          = LEARNING_RATE,
+        lr_warm_up_steps            = 100,
+        lr_decay_steps              = 100,
+        adam_beta1                  = 0.0,
+        adam_beta2                  = 0.999,
+        l0_coefficient              = L0_COEFFICIENT,
+        l0_warm_up_steps            = 100,
+        dead_penalty_coef           = 1e-5,
+        dead_feature_window         = 250,
+        log_to_wandb                = False,
+        wandb_project               = "nanogpt-clt",
+        run_name                    = f"nanogpt-{N_LAYER}L-{N_EMBD}d-clt",
+    )
+
+    store = ActivationsStore(model=tl_model, cfg=gen_cfg)
+
+    store.generate_and_save_activations(
+        path            = CACHED_ACTIVATIONS_DIR,
+        use_compression = USE_COMPRESSION,
+    )
+
+    saved = [f for f in os.listdir(os.path.join(CACHED_ACTIVATIONS_DIR, f"ctx_{CONTEXT_SIZE}"))
+             if f.endswith(".safetensors") or f.endswith(".bin")]
+    print(f"\nActivation caching complete. {len(saved)} split files saved.")
+    print(f"Location: {CACHED_ACTIVATIONS_DIR}/ctx_{CONTEXT_SIZE}/")
