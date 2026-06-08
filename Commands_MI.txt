@@ -138,3 +138,29 @@ for char in WORD:
     else:
         print(f"  '{char}' → NOT in vocab")
 
+
+
+###############################
+
+# Cell 4: Generate
+EOT_TOKEN = enc.eot_token  # 50256
+
+prompt_ids = encode(PROMPT)
+x = torch.tensor(prompt_ids, dtype=torch.long, device=DEVICE).unsqueeze(0)  # (1, T)
+
+print(f"Prompt : {PROMPT!r}")
+print(f"Tokens : {N_TOKENS} new tokens\n{'─'*60}")
+
+with torch.no_grad():
+    with ctx:
+        output_ids = model.generate(x, N_TOKENS, temperature=TEMPERATURE, top_k=TOP_K)
+
+# Truncate at first EOS token
+tokens = output_ids[0].tolist()
+if EOT_TOKEN in tokens:
+    tokens = tokens[:tokens.index(EOT_TOKEN)]
+
+generated_text = decode(tokens)
+print(generated_text)
+
+
