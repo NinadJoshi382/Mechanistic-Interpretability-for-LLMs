@@ -1,0 +1,108 @@
+# ── Environment Check + Selective Install ─────────────────────────────────────
+# Checks all required libraries. Only installs/upgrades what is missing or outdated.
+
+import importlib, sys, subprocess
+from importlib.metadata import version, PackageNotFoundError
+
+# (import_name, pip_package_name, minimum_version_or_None)
+REQUIRED = [
+    ("clt_forge",        "clt-forge",          None),
+    ("transformer_lens", "transformer-lens",   "2.0.0"),
+    ("torch",            "torch",              "2.0.0"),
+    ("tiktoken",         "tiktoken",           None),
+    ("datasets",         "datasets",           None),
+    ("transformers",     "transformers",       None),
+    ("tokenizers",       "tokenizers",         None),
+    ("huggingface_hub",  "huggingface-hub",    None),
+    ("zstandard",        "zstandard",          None),
+    ("numpy",            "numpy",              "1.24.0"),
+    ("einops",           "einops",             None),
+    ("wandb",            "wandb",              None),
+    ("tqdm",             "tqdm",               None),
+    ("dash",             "dash",               None),
+    ("plotly",           "plotly",             None),
+    ("packaging",        "packaging",          None),
+]
+
+GREEN  = "\033[92m"
+YELLOW = "\033[93m"
+RED    = "\033[91m"
+RESET  = "\033[0m"
+BOLD   = "\033[1m"
+
+to_install  = []   # completely missing
+to_upgrade  = []   # present but below minimum version
+
+print(f"{BOLD}{'Library':<25} {'Pip Package':<28} {'Status':<12} {'Version'}{RESET}")
+print("─" * 80)
+
+for import_name, pip_name, min_ver in REQUIRED:
+    try:
+        mod = importlib.import_module(import_name)
+
+        try:
+            inst_ver = version(pip_name)
+        except PackageNotFoundError:
+            inst_ver = getattr(mod, "__version__", "unknown")
+
+        # Version comparison (only when a minimum is specified)
+        if min_ver and inst_ver != "unknown":
+            try:
+                from packaging.version import Version
+                if Version(inst_ver) < Version(min_ver):
+                    to_upgrade.append((pip_name, min_ver))
+                    print(f"  {import_name:<23} {pip_name:<28} "
+                          f"{YELLOW}{'OUTDATED':<12}{RESET} {inst_ver}  (need >= {min_ver})")
+                    continue
+            except Exception:
+                pass
+
+        print(f"  {import_name:<23} {pip_name:<28} {GREEN}{'OK':<12}{RESET} {inst_ver}")
+
+    except ImportError:
+        to_install.append(pip_name)
+        print(f"  {import_name:<23} {pip_name:<28} {RED}{'MISSING':<12}{RESET}")
+
+print("─" * 80)
+
+# ── Python + CUDA info ────────────────────────────────────────────────────────
+py = sys.version_info
+print(f"\nPython {py.major}.{py.minor}.{py.micro}"
+      + (f"  {GREEN}(OK){RESET}" if py >= (3, 10) else f"  {YELLOW}(recommend >= 3.10){RESET}"))
+try:
+    import torch
+    if torch.cuda.is_available():
+        props = torch.cuda.get_device_properties(0)
+        print(f"{GREEN}CUDA: {torch.cuda.get_device_name(0)}  "
+              f"({props.total_memory // 1024**3} GB){RESET}")
+    else:
+        print(f"{YELLOW}CUDA not available — training will run on CPU{RESET}")
+except ImportError:
+    pass
+
+# ── Summary ───────────────────────────────────────────────────────────────────
+print(f"\n{BOLD}Summary:{RESET}")
+print(f"  {GREEN}OK      : {len(REQUIRED) - len(to_install) - len(to_upgrade)}{RESET}")
+print(f"  {YELLOW}Outdated: {len(to_upgrade)}{RESET}")
+print(f"  {RED}Missing : {len(to_install)}{RESET}")
+
+# ── Selective install — only runs if something needs action ───────────────────
+if not to_install and not to_upgrade:
+    print(f"\n{GREEN}{BOLD}All dependencies satisfied. Ready to train!{RESET}")
+else:
+    print(f"\n{YELLOW}Installing/upgrading only what is needed...{RESET}\n")
+
+    if to_install:
+        print(f"  Installing: {to_install}")
+        subprocess.check_call(
+            [sys.executable, "-m", "pip", "install", "-q"] + to_install
+        )
+
+    if to_upgrade:
+        pkgs = [f"{pkg}>={ver}" for pkg, ver in to_upgrade]
+        print(f"  Upgrading : {pkgs}")
+        subprocess.check_call(
+            [sys.executable, "-m", "pip", "install", "-q", "--upgrade"] + pkgs
+        )
+
+    print(f"\n{GREEN}{BOLD}Done. All dependencies are now satisfied.{RESET}")
