@@ -93,3 +93,13 @@ print("Converting weights...")
 tl_state_dict = convert_nanogpt_weights(raw_sd, tl_cfg)
 print(f"Converted {len(tl_state_dict)} parameter tensors.")
 print("Sample keys:", list(tl_state_dict.keys())[:8])
+
+
+
+
+
+
+
+import clt_forge
+print([x for x in dir(clt_forge) if not x.startswith("_")])
+
