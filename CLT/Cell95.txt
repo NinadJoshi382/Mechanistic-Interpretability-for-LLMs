@@ -1,0 +1,17 @@
+import os
+from pathlib import Path
+
+split_dir = Path(CACHED_ACTIVATIONS_DIR) / f"ctx_{CONTEXT_SIZE}"
+files = sorted(split_dir.glob("activations_ctx_*_split_*.bin"))
+print(f"Found {len(files)} compressed split files:")
+for f in files:
+    size_mb = f.stat().st_size / 1024 / 1024
+    print(f"  {f.name}  {size_mb:.1f} MB")
+
+# Each split must contain >= n_train_batch_per_buffer * train_batch_size_tokens tokens
+min_required = 64 * 2048   # n_train_batch_per_buffer * train_batch_size_tokens
+print(f"\nMin tokens required per split: {min_required:,}")
+print(f"Total training tokens: {TOTAL_TRAINING_TOKENS:,}")
+print(f"Tokens per split (approx): {TOTAL_TRAINING_TOKENS // 10:,}")
+if TOTAL_TRAINING_TOKENS // 10 < min_required:
+    print(f"WARNING: Not enough tokens per split. Increase TOTAL_TRAINING_TOKENS to at least {min_required * 10:,}")
