@@ -1,3 +1,20 @@
+# Run this first to check actual shapes before the reshape
+print(f"eval_tokens shape : {eval_tokens.shape}")           # (B, S)
+print(f"mlp_inputs[0] shape : {mlp_inputs[0].shape}")      # (B, S, d_in) ?
+print(f"stacked shape : {torch.stack(mlp_inputs, dim=2).shape}")  # before reshape
+print(f"B={B}, S={S}, N_LAYER={N_LAYER}, N_EMBD={N_EMBD}")
+print(f"Total elements : {torch.stack(mlp_inputs, dim=2).numel()}")
+print(f"Expected after reshape : {B * S * N_LAYER * N_EMBD}")
+
+
+
+
+
+
+
+
+
+
 import torch, glob, os
 from clt_forge.clt import CLT
 
