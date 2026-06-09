@@ -1,0 +1,28 @@
+import glob, os
+from clt_forge.clt_training_runner import CLTTrainingRunner
+
+print("Initialising CLTTrainingRunner...")
+trainer = CLTTrainingRunner(cfg)
+
+print(f"CLT n_layers confirmed: {trainer.clt.N_layers}")
+print("Starting training...")
+
+trainer.run()
+
+print("\nCLT training complete!")
+
+checkpoints = sorted(glob.glob(os.path.join(CLT_CHECKPOINT_DIR, "**"), recursive=True))
+ckpt_dirs = [
+    d for d in checkpoints
+    if os.path.isdir(d)
+    and os.path.exists(os.path.join(d, "clt_cfg.json"))
+    and os.path.exists(os.path.join(d, "clt_weights.safetensors"))
+]
+if ckpt_dirs:
+    BEST_CHECKPOINT = ckpt_dirs[-1]
+    print(f"Latest checkpoint: {BEST_CHECKPOINT}")
+else:
+    print("WARNING: No checkpoint files found.")
+    BEST_CHECKPOINT = CLT_CHECKPOINT_DIR
+
+
