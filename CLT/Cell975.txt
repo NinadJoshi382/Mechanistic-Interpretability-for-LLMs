@@ -1,0 +1,18 @@
+import os
+from pathlib import Path
+
+ctx_dir = Path(CACHED_ACTIVATIONS_DIR) / f"ctx_{CONTEXT_SIZE}"
+
+# Delete only the old compressed .bin files
+deleted = []
+for f in ctx_dir.glob("*.bin"):
+    f.unlink()
+    deleted.append(f.name)
+
+print(f"Deleted {len(deleted)} .bin files:")
+for name in deleted:
+    print(f"  {name}")
+
+# Confirm only .safetensors remain
+remaining = list(ctx_dir.glob("*.safetensors"))
+print(f"\n{len(remaining)} .safetensors files remaining — ready for Cell 10.")
