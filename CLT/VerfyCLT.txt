@@ -1,0 +1,10 @@
+from clt_forge.clt import CLT
+
+clt_model = CLT.load_from_pretrained(BEST_CHECKPOINT, device=DEVICE)
+
+print(f"CLT n_layers     : {clt_model.N_layers}")       # should be 4
+print(f"CLT d_in         : {clt_model.d_in}")           # should be 128
+print(f"CLT d_latent     : {clt_model.d_latent}")       # should be 128 * EXPANSION_FACTOR
+print(f"W_enc shape      : {clt_model.W_enc.shape}")    # (4, 128, d_latent)
+print(f"W_dec shape      : {clt_model.W_dec.shape}")    # (n_dec_pairs, d_latent, 128)
+print(f"b_enc shape      : {clt_model.b_enc.shape}")    # (4, d_latent)
