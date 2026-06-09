@@ -1,0 +1,13 @@
+if self.cfg.n_layers is not None:
+    n_layers = self.cfg.n_layers
+else:
+    model_cfg = AutoConfig.from_pretrained(self.cfg.model_name)
+    n_layers = (
+        getattr(model_cfg, "n_layer", None)
+        or getattr(model_cfg, "num_hidden_layers", None)
+        or getattr(model_cfg, "num_layers", None)
+    )
+    if n_layers is None:
+        raise ValueError(
+            f"Could not infer number of layers for model '{self.cfg.model_name}'."
+        )
