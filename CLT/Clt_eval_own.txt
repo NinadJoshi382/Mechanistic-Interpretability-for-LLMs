@@ -1,0 +1,80 @@
+import torch, glob, os
+from clt_forge.clt import CLT
+
+# ── Load the trained CLT ───────────────────────────────────────────────────────
+ckpt_dirs = sorted([
+    d for d in glob.glob(os.path.join(CLT_CHECKPOINT_DIR, "**"), recursive=True)
+    if os.path.isdir(d)
+    and os.path.exists(os.path.join(d, "clt_cfg.json"))
+    and os.path.exists(os.path.join(d, "clt_weights.safetensors"))
+])
+
+if not ckpt_dirs:
+    raise FileNotFoundError(f"No checkpoint found under {CLT_CHECKPOINT_DIR}")
+
+BEST_CHECKPOINT = ckpt_dirs[-1]
+print(f"Loading CLT from : {BEST_CHECKPOINT}")
+
+clt_model = CLT.load_from_pretrained(BEST_CHECKPOINT, device=DEVICE)
+clt_model.eval()
+
+print(f"CLT n_layers     : {clt_model.N_layers}")
+print(f"CLT d_in         : {clt_model.d_in}")
+print(f"CLT d_latent     : {clt_model.d_latent}")
+
+# ── Run eval tokens through the frozen NanoGPT ────────────────────────────────
+eval_tokens = torch.randint(0, VOCAB_SIZE, (4, CONTEXT_SIZE), device=DEVICE)
+
+with torch.no_grad():
+    _, cache = tl_model.run_with_cache(
+        eval_tokens,
+        names_filter=lambda n: "mlp" in n and ("hook_pre" in n or "hook_post" in n)
+    )
+
+# Each entry: [batch, seq, d_in]
+mlp_inputs  = [cache[f"blocks.{L}.mlp.hook_pre"]  for L in range(N_LAYER)]
+mlp_outputs = [cache[f"blocks.{L}.mlp.hook_post"] for L in range(N_LAYER)]
+
+# ── Stack into [batch*seq, N_layers, d_in] ────────────────────────────────────
+B, S = eval_tokens.shape
+act_in  = torch.stack(mlp_inputs,  dim=2).reshape(B * S, N_LAYER, N_EMBD).to(DEVICE)
+act_out = torch.stack(mlp_outputs, dim=2).reshape(B * S, N_LAYER, N_EMBD).to(DEVICE)
+
+# ── Get CLT reconstruction using forward_eval ─────────────────────────────────
+# forward_eval(x) does: encode -> decode, no loss coefficients needed
+with torch.no_grad():
+    recon = clt_model.forward_eval(act_in)  # [B*S, N_layers, d_in]
+
+# ── Per-layer explained variance ──────────────────────────────────────────────
+print("\nPer-layer explained variance (1.0 = perfect):")
+total_ev = 0.0
+for L in range(N_LAYER):
+    target = act_out[:, L, :].float()   # [B*S, d_in]
+    pred   = recon[:, L, :].float()     # [B*S, d_in]
+
+    ss_res = ((target - pred) ** 2).sum().item()
+    ss_tot = ((target - target.mean()) ** 2).sum().item()
+    ev     = 1.0 - ss_res / (ss_tot + 1e-8)
+    total_ev += ev
+
+    bar = '#' * int(max(0, ev) * 30)
+    print(f"  Layer {L}: {ev:.4f}  |{bar:<30}|")
+
+print(f"\n  Mean EV : {total_ev / N_LAYER:.4f}")
+
+# ── Per-layer MSE ──────────────────────────────────────────────────────────────
+print("\nPer-layer MSE:")
+for L in range(N_LAYER):
+    target = act_out[:, L, :].float()
+    pred   = recon[:, L, :].float()
+    mse    = ((target - pred) ** 2).mean().item()
+    print(f"  Layer {L}: {mse:.6f}")
+
+# ── Feature sparsity — average active features per token ──────────────────────
+print("\nFeature sparsity (avg active features per token per layer):")
+with torch.no_grad():
+    feat_acts, _ = clt_model.encode(act_in)   # [B*S, N_layers, d_latent]
+    active = (feat_acts > 0).float()
+    for L in range(N_LAYER):
+        avg_active = active[:, L, :].sum(dim=-1).mean().item()
+        print(f"  Layer {L}: {avg_active:.1f} / {clt_model.d_latent} features active")
