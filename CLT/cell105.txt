@@ -1,0 +1,14 @@
+import os
+from pathlib import Path
+
+ctx_dir = Path(CACHED_ACTIVATIONS_DIR) / f"ctx_{CONTEXT_SIZE}"
+print(f"Looking in: {ctx_dir.resolve()}")
+print(f"Directory exists: {ctx_dir.exists()}")
+
+if ctx_dir.exists():
+    files = list(ctx_dir.iterdir())
+    print(f"\nFiles found ({len(files)}):")
+    for f in sorted(files):
+        print(f"  {f.name}  ({f.stat().st_size / 1024:.1f} KB)")
+else:
+    print("Directory does not exist — Cell 9 may not have run successfully.")
