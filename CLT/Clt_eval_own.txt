@@ -10,6 +10,24 @@ print(f"Expected after reshape : {B * S * N_LAYER * N_EMBD}")
 
 
 
+# BEFORE
+mlp_inputs  = [cache[f"blocks.{L}.mlp.hook_pre"]  for L in range(N_LAYER)]
+mlp_outputs = [cache[f"blocks.{L}.mlp.hook_post"] for L in range(N_LAYER)]
+
+# AND the names_filter
+names_filter=lambda n: "mlp" in n and ("hook_pre" in n or "hook_post" in n)
+
+# AFTER
+mlp_inputs  = [cache[f"blocks.{L}.ln2.hook_normalized"] for L in range(N_LAYER)]
+mlp_outputs = [cache[f"blocks.{L}.hook_mlp_out"]        for L in range(N_LAYER)]
+
+# AND the names_filter
+names_filter=lambda n: "ln2.hook_normalized" in n or "hook_mlp_out" in n
+
+
+
+
+
 
 
 
