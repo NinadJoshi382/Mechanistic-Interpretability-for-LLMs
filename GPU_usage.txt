@@ -1,26 +1,41 @@
-import torch
-import time
+import subprocess, time, re
 from IPython.display import display, clear_output
-import matplotlib.pyplot as plt
-import matplotlib.animation as animation
 from collections import deque
+import matplotlib.pyplot as plt
 
 # ── Config ─────────────────────────────────────────────────────────────────────
-MAX_POINTS    = 100      # how many data points to show on x-axis
-UPDATE_EVERY  = 0.5      # seconds between updates
-TOTAL_VRAM_GB = torch.cuda.get_device_properties(0).total_memory / 1024**3
+MAX_POINTS   = 100
+UPDATE_EVERY = 1.0    # seconds
+
+def get_gpu_memory():
+    """
+    Reads GPU memory directly from nvidia-smi.
+    Returns (used_gb, total_gb) for GPU 0.
+    """
+    result = subprocess.run(
+        ["nvidia-smi",
+         "--query-gpu=memory.used,memory.total,memory.free",
+         "--format=csv,noheader,nounits"],
+        capture_output=True, text=True
+    )
+    line   = result.stdout.strip().splitlines()[0]   # GPU 0
+    used, total, free = [int(x.strip()) for x in line.split(",")]
+    return used / 1024, total / 1024, free / 1024   # MB → GB
+
+# ── Initial values ─────────────────────────────────────────────────────────────
+_, TOTAL_VRAM_GB, _ = get_gpu_memory()
 
 # ── Data buffers ───────────────────────────────────────────────────────────────
-times      = deque(maxlen=MAX_POINTS)
-used_gb    = deque(maxlen=MAX_POINTS)
-reserved_gb= deque(maxlen=MAX_POINTS)
-start_time = time.time()
+times    = deque(maxlen=MAX_POINTS)
+used_gb  = deque(maxlen=MAX_POINTS)
+free_gb  = deque(maxlen=MAX_POINTS)
+start_t  = time.time()
 
 # ── Plot setup ─────────────────────────────────────────────────────────────────
 fig, ax = plt.subplots(figsize=(10, 4))
 fig.patch.set_facecolor("#1e1e1e")
 ax.set_facecolor("#1e1e1e")
-ax.set_title("Live GPU Memory Usage", color="white", fontsize=13)
+ax.set_title("Live GPU Memory Usage  (nvidia-smi)", color="white", fontsize=13)
 ax.set_xlabel("Time (s)",  color="white")
 ax.set_ylabel("VRAM (GB)", color="white")
 ax.tick_params(colors="white")
@@ -28,42 +43,39 @@ ax.set_ylim(0, TOTAL_VRAM_GB * 1.05)
 for spine in ax.spines.values():
     spine.set_edgecolor("#444")
 
-line_used,     = ax.plot([], [], color="#00d4ff", linewidth=2, label="Used")
-line_reserved, = ax.plot([], [], color="#ff6b6b", linewidth=1.5,
-                          linestyle="--", label="Reserved")
-ax.axhline(y=TOTAL_VRAM_GB, color="#888", linestyle=":", linewidth=1,
-           label=f"Total ({TOTAL_VRAM_GB:.1f} GB)")
+line_used, = ax.plot([], [], color="#00d4ff", linewidth=2,   label="Used")
+line_free, = ax.plot([], [], color="#51cf66", linewidth=1.5,
+                     linestyle="--", label="Free")
+ax.axhline(y=TOTAL_VRAM_GB, color="#888", linestyle=":",
+           linewidth=1, label=f"Total ({TOTAL_VRAM_GB:.1f} GB)")
 ax.legend(facecolor="#2e2e2e", labelcolor="white", loc="upper left")
 
 txt = ax.text(0.98, 0.95, "", transform=ax.transAxes,
-              ha="right", va="top", color="white",
-              fontsize=10, fontfamily="monospace",
+              ha="right", va="top", color="white", fontsize=10,
+              fontfamily="monospace",
               bbox=dict(facecolor="#2e2e2e", edgecolor="#555", boxstyle="round"))
 
 plt.tight_layout()
 
-# ── Update function ────────────────────────────────────────────────────────────
+# ── Live loop ──────────────────────────────────────────────────────────────────
 try:
     while True:
-        elapsed   = time.time() - start_time
-        used      = torch.cuda.memory_allocated(0)  / 1024**3
-        reserved  = torch.cuda.memory_reserved(0)   / 1024**3
+        elapsed           = time.time() - start_t
+        used, total, free = get_gpu_memory()
 
         times.append(elapsed)
         used_gb.append(used)
-        reserved_gb.append(reserved)
+        free_gb.append(free)
 
         t_list = list(times)
         line_used.set_data(t_list, list(used_gb))
-        line_reserved.set_data(t_list, list(reserved_gb))
-
+        line_free.set_data(t_list, list(free_gb))
         ax.set_xlim(max(0, elapsed - MAX_POINTS * UPDATE_EVERY), elapsed + 1)
 
         txt.set_text(
-            f"Used     : {used:.2f} GB\n"
-            f"Reserved : {reserved:.2f} GB\n"
-            f"Free     : {TOTAL_VRAM_GB - reserved:.2f} GB\n"
-            f"Total    : {TOTAL_VRAM_GB:.1f} GB"
+            f"Used  : {used:.2f} GB\n"
+            f"Free  : {free:.2f} GB\n"
+            f"Total : {total:.1f} GB"
         )
 
         clear_output(wait=True)
