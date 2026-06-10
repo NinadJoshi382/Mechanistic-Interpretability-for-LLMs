@@ -12,3 +12,25 @@ autointerp.run(
 )
 
 print(f"\nAutoInterp complete. Results saved to: {AUTOINTERP_DIR}")
+
+
+
+import pandas as pd, glob, json
+
+parquet_files = sorted(glob.glob(f"{AUTOINTERP_DIR}/parquet/*.parquet"))
+df = pd.read_parquet(parquet_files[0])
+
+print(f"Total features: {len(df)}")
+print(f"Columns: {list(df.columns)}\n")
+
+# Show top 10 features sorted by average activation
+df_sorted = df.sort_values("average_activation", ascending=False).head(10)
+
+for _, row in df_sorted.iterrows():
+    print(f"Layer {row['layer']} | Feature {row['feature_id']}")
+    print(f"  Avg activation : {row['average_activation']:.4f}")
+    print(f"  Description    : {row['description']}")
+    print(f"  Explanation    : {row['explanation']}")
+    examples = json.loads(row['top_examples'])
+    print(f"  Top example    : {examples[0] if examples else 'None'}")
+    print()
