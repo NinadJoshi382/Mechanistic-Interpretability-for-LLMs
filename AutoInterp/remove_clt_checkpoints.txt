@@ -1,0 +1,8 @@
+import shutil, os
+
+if os.path.exists(CLT_CHECKPOINT_DIR):
+    shutil.rmtree(CLT_CHECKPOINT_DIR)
+    os.makedirs(CLT_CHECKPOINT_DIR)
+    print(f"Cleared: {CLT_CHECKPOINT_DIR}")
+
+print("Cached activations kept — no need to regenerate.")
