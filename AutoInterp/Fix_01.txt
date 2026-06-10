@@ -1,0 +1,6 @@
+from clt_forge.clt import CLT
+import json, os
+
+clt = CLT.load_from_pretrained(BEST_CHECKPOINT, device="cpu")
+print(f"CLT internal cfg model_name : {clt.cfg.model_name}")
+print(f"CLT internal cfg n_layers   : {clt.cfg.n_layers}")
