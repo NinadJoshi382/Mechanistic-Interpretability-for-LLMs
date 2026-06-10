@@ -1,0 +1,170 @@
+import torch
+import tiktoken
+from clt_forge.clt import CLT
+
+# ── Paths — fill these in ──────────────────────────────────────────────────────
+NANOGPT_CKPT_PATH   = "/path/to/your/nanogpt/ckpt.pt"         # <-- original NanoGPT checkpoint
+CLT_CKPT_PATH       = "/path/to/your/clt_checkpoints/final"   # <-- CLT checkpoint directory
+
+# ── Load CLT ───────────────────────────────────────────────────────────────────
+clt_model = CLT.load_from_pretrained(CLT_CKPT_PATH, device=DEVICE)
+clt_model.eval()
+
+# ── Load NanoGPT via TransformerLens ──────────────────────────────────────────
+# Re-uses the same conversion pipeline from Cell 4 and 5
+import os, pickle
+from transformer_lens import HookedTransformer, HookedTransformerConfig
+
+print(f"Loading NanoGPT from : {NANOGPT_CKPT_PATH}")
+checkpoint = torch.load(NANOGPT_CKPT_PATH, map_location="cpu", weights_only=False)
+
+model_args = checkpoint["model_args"]
+N_LAYER    = model_args["n_layer"]
+N_HEAD     = model_args["n_head"]
+N_EMBD     = model_args["n_embd"]
+BLOCK_SIZE = model_args["block_size"]
+
+raw_sd = checkpoint["model"]
+raw_sd = {(k[len("_orig_mod."):] if k.startswith("_orig_mod.") else k): v for k, v in raw_sd.items()}
+raw_sd = {(k[len("module."):] if k.startswith("module.") else k): v for k, v in raw_sd.items()}
+
+dataset   = checkpoint.get("config", {}).get("dataset", None)
+meta_path = os.path.join("data", dataset, "meta.pkl") if dataset else None
+
+if meta_path and os.path.exists(meta_path):
+   with open(meta_path, "rb") as f:
+       meta = pickle.load(f)
+   VOCAB_SIZE        = meta["vocab_size"]
+   TL_TOKENIZER_NAME = None
+else:
+   VOCAB_SIZE        = model_args.get("vocab_size", 50304)
+   TL_TOKENIZER_NAME = "gpt2"
+
+tl_cfg = HookedTransformerConfig(
+   n_layers           = N_LAYER,
+   d_model            = N_EMBD,
+   n_heads            = N_HEAD,
+   d_head             = N_EMBD // N_HEAD,
+   d_mlp              = 4 * N_EMBD,
+   n_ctx              = BLOCK_SIZE,
+   d_vocab            = VOCAB_SIZE,
+   act_fn             = "gelu_new",
+   normalization_type = "LN",
+   tokenizer_name     = TL_TOKENIZER_NAME,
+   device             = "cpu",
+   attn_only          = False,
+)
+
+# Reuse convert_nanogpt_weights from Cell 5
+tl_state_dict = convert_nanogpt_weights(raw_sd, tl_cfg)
+tl_model = HookedTransformer(tl_cfg)
+tl_model.load_state_dict(tl_state_dict, strict=False)
+tl_model.eval().to(DEVICE)
+for p in tl_model.parameters():
+   p.requires_grad_(False)
+
+print(f"NanoGPT loaded  | layers={N_LAYER}, n_embd={N_EMBD}, vocab={VOCAB_SIZE}")
+print(f"CLT loaded      | N_layers={clt_model.N_layers}, d_latent={clt_model.d_latent}")
+
+# ── Tokeniser ─────────────────────────────────────────────────────────────────
+if TL_TOKENIZER_NAME is not None:
+   enc    = tiktoken.get_encoding("gpt2")
+   encode = lambda s: enc.encode(s, allowed_special={"<|endoftext|>"})
+   decode = lambda ids: enc.decode(ids)
+else:
+   encode = lambda s: [meta["stoi"][c] for c in s]
+   decode = lambda ids: "".join([meta["itos"][i] for i in ids])
+
+# ── Prompt ────────────────────────────────────────────────────────────────────
+PROMPT       = "Once upon a time"    # <-- change this
+N_NEW_TOKENS = 20
+
+prompt_ids = encode(PROMPT)
+tokens     = torch.tensor(prompt_ids, dtype=torch.long, device=DEVICE).unsqueeze(0)
+T          = tokens.shape[1]
+
+print(f"\nPrompt  : {PROMPT!r}")
+print(f"Tokens  : {prompt_ids}")
+
+# ── Run base model, collect activations ───────────────────────────────────────
+with torch.no_grad():
+   _, cache = tl_model.run_with_cache(
+       tokens,
+       names_filter=lambda n: (
+           "ln2.hook_normalized" in n or
+           "hook_mlp_out"        in n or
+           "hook_resid_pre"      in n
+       )
+   )
+
+# ── Stack MLP inputs for CLT → [T, N_layers, d_in] ───────────────────────────
+acts_in = torch.stack(
+   [cache[f"blocks.{L}.ln2.hook_normalized"] for L in range(N_LAYER)], dim=2
+).reshape(T, N_LAYER, N_EMBD)
+
+# ── CLT reconstruction ────────────────────────────────────────────────────────
+with torch.no_grad():
+   clt_recon = clt_model.forward_eval(acts_in)   # [T, N_layers, d_in]
+
+# ── Patch residual stream ─────────────────────────────────────────────────────
+resid = cache["blocks.0.hook_resid_pre"].clone()   # [1, T, d_model]
+
+for L in range(N_LAYER):
+   orig_mlp = cache[f"blocks.{L}.hook_mlp_out"]   # [1, T, d_model]
+   clt_mlp  = clt_recon[:, L, :].unsqueeze(0)     # [1, T, d_model]
+   resid    = resid + (clt_mlp - orig_mlp)
+
+# ── Get CLT logits ────────────────────────────────────────────────────────────
+with torch.no_grad():
+   clt_logits  = tl_model.unembed(tl_model.ln_final(resid))   # [1, T, vocab]
+   orig_logits = tl_model(tokens)                              # [1, T, vocab]
+
+# ── Top-5 predictions per position ───────────────────────────────────────────
+def top_k_tokens(logits, k=5):
+   probs = torch.softmax(logits, dim=-1)
+   top_probs, top_ids = torch.topk(probs, k)
+   return [(decode([int(i)]), f"{float(p):.3f}") for i, p in zip(top_ids, top_probs)]
+
+print(f"\n{'─'*60}")
+for t in range(T):
+   tok_str  = decode([prompt_ids[t]])
+   orig_top = top_k_tokens(orig_logits[0, t])
+   clt_top  = top_k_tokens(clt_logits[0, t])
+   print(f"\nPosition {t} | token: {tok_str!r}")
+   print(f"  Original : {orig_top}")
+   print(f"  CLT      : {clt_top}")
+
+# ── Greedy generation comparison ─────────────────────────────────────────────
+def generate_clt(prompt_tokens, n_new):
+   generated = list(prompt_tokens)
+   for _ in range(n_new):
+       inp = torch.tensor(generated, dtype=torch.long, device=DEVICE).unsqueeze(0)
+       with torch.no_grad():
+           _, c = tl_model.run_with_cache(
+               inp,
+               names_filter=lambda n: "ln2.hook_normalized" in n or
+                                      "hook_mlp_out"        in n or
+                                      "hook_resid_pre"      in n
+           )
+       T_cur = inp.shape[1]
+       a_in  = torch.stack(
+           [c[f"blocks.{L}.ln2.hook_normalized"] for L in range(N_LAYER)], dim=2
+       ).reshape(T_cur, N_LAYER, N_EMBD)
+       with torch.no_grad():
+           recon = clt_model.forward_eval(a_in)
+       resid_cur = c["blocks.0.hook_resid_pre"].clone()
+       for L in range(N_LAYER):
+           resid_cur = resid_cur + (recon[:, L, :].unsqueeze(0) - c[f"blocks.{L}.hook_mlp_out"])
+       with torch.no_grad():
+           next_tok = int(torch.argmax(tl_model.unembed(tl_model.ln_final(resid_cur))[0, -1]))
+       generated.append(next_tok)
+   return generated
+
+with torch.no_grad():
+   orig_out = tl_model.generate(PROMPT, max_new_tokens=N_NEW_TOKENS, temperature=1.0, top_k=1)
+
+clt_out = decode(generate_clt(prompt_ids, N_NEW_TOKENS))
+
+print(f"\n{'─'*60}")
+print(f"Original : {orig_out}")
+print(f"CLT      : {clt_out}")
