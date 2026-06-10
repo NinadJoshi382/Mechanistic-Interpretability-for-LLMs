@@ -1,0 +1,5 @@
+!nvidia-smi --query-compute-apps=pid,used_memory --format=csv && \
+ echo "---" && \
+ for pid in $(nvidia-smi --query-compute-apps=pid --format=csv,noheader); do
+     echo "PID $pid -> $(cat /proc/$pid/cmdline | tr '\0' ' ')";
+ done
