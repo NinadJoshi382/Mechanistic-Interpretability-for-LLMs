@@ -3,3 +3,23 @@
  for pid in $(nvidia-smi --query-compute-apps=pid --format=csv,noheader); do
      echo "PID $pid -> $(cat /proc/$pid/cmdline | tr '\0' ' ')";
  done
+
+
+
+import subprocess
+
+# Get GPU PIDs
+result = subprocess.run(['nvidia-smi', '--query-compute-apps=pid,used_memory', 
+                        '--format=csv,noheader'], capture_output=True, text=True)
+print("PID | Memory")
+print(result.stdout)
+
+# Map each PID to its process
+for line in result.stdout.strip().split('\n'):
+    pid = line.split(',')[0].strip()
+    try:
+        with open(f'/proc/{pid}/cmdline', 'r') as f:
+            cmd = f.read().replace('\0', ' ')
+        print(f"PID {pid} -> {cmd}")
+    except:
+        print(f"PID {pid} -> could not read")
