@@ -1,0 +1,6 @@
+from clt_forge.clt import CLT
+
+clt_model = CLT.load_from_pretrained(BEST_CHECKPOINT, device="cpu")
+print(f"N_layers                      : {clt_model.N_layers}")               # must be 4
+print(f"norm_scaling_factor_in shape  : {clt_model.estimated_norm_scaling_factor_in.shape}")   # must be [4]
+print(f"norm_scaling_factor_out shape : {clt_model.estimated_norm_scaling_factor_out.shape}")  # must be [4]
