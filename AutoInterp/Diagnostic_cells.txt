@@ -1,0 +1,44 @@
+import torch, glob, os
+
+# Find all checkpoint dirs
+ckpt_dirs = sorted([
+    d for d in glob.glob(os.path.join(CLT_CHECKPOINT_DIR, "**"), recursive=True)
+    if os.path.isdir(d)
+    and os.path.exists(os.path.join(d, "clt_cfg.json"))
+    and os.path.exists(os.path.join(d, "clt_weights.safetensors"))
+])
+
+print(f"Checkpoint dirs found: {len(ckpt_dirs)}")
+for d in ckpt_dirs:
+    print(f"  {d}")
+
+if ckpt_dirs:
+    # Load raw weights without building the model
+    from safetensors.torch import load_file
+    weights = load_file(os.path.join(ckpt_dirs[-1], "clt_weights.safetensors"))
+    print("\nKeys containing 'norm':")
+    for k, v in weights.items():
+        if "norm" in k:
+            print(f"  {k}: shape {v.shape}")
+    print("\nAll weight keys and shapes:")
+    for k, v in weights.items():
+        print(f"  {k}: {v.shape}")
+
+
+import json, os, glob
+
+ckpt_dirs = sorted([
+    d for d in glob.glob(os.path.join(CLT_CHECKPOINT_DIR, "**"), recursive=True)
+    if os.path.isdir(d)
+    and os.path.exists(os.path.join(d, "clt_cfg.json"))
+])
+
+if ckpt_dirs:
+    with open(os.path.join(ckpt_dirs[-1], "clt_cfg.json")) as f:
+        clt_cfg = json.load(f)
+    print("CLT config saved in checkpoint:")
+    for k, v in clt_cfg.items():
+        print(f"  {k}: {v}")
+
+
+      
