@@ -1,0 +1,9 @@
+if cfg.use_pretrained_model and hasattr(cfg, "_pretrained_model") and cfg._pretrained_model is not None:
+    self.model = cfg._pretrained_model
+else:
+    self.model = load_model(
+        cfg.model_class_name,
+        cfg.model_name,
+        device=self.device,
+        model_from_pretrained_kwargs=cfg.model_from_pretrained_kwargs,
+    )
