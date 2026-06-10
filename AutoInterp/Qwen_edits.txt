@@ -1,0 +1,111 @@
+#Run in the cell
+
+from transformers import AutoModelForCausalLM, AutoTokenizer
+import torch
+
+QWEN_MODEL_ID   = "Qwen/Qwen2.5-7B-Instruct"
+QWEN_LOCAL_PATH = "./qwen_model"          # where it gets saved on disk
+
+print("Downloading Qwen2.5-7B-Instruct (first run only)...")
+tokenizer = AutoTokenizer.from_pretrained(QWEN_MODEL_ID)
+model     = AutoModelForCausalLM.from_pretrained(
+    QWEN_MODEL_ID,
+    torch_dtype = torch.float16,          # half precision — saves ~7GB vs float32
+    device_map  = "auto",                 # puts layers on GPU automatically
+)
+tokenizer.save_pretrained(QWEN_LOCAL_PATH)
+model.save_pretrained(QWEN_LOCAL_PATH)
+print(f"Qwen saved to {QWEN_LOCAL_PATH}")
+
+
+
+
+# Open src/clt_forge/autointerp/client.py and replace the entire file with:
+
+import torch
+from transformers import AutoModelForCausalLM, AutoTokenizer
+
+# Path to your locally saved Qwen model — must match QWEN_LOCAL_PATH above
+QWEN_LOCAL_PATH = "./qwen_model"
+
+_tokenizer = None
+_model     = None
+
+def _load_qwen():
+    """Load Qwen once and cache it in module-level variables."""
+    global _tokenizer, _model
+    if _model is None:
+        print("Loading Qwen from disk...")
+        _tokenizer = AutoTokenizer.from_pretrained(QWEN_LOCAL_PATH)
+        _model     = AutoModelForCausalLM.from_pretrained(
+            QWEN_LOCAL_PATH,
+            torch_dtype = torch.float16,
+            device_map  = "auto",
+        )
+        _model.eval()
+        print("Qwen loaded.")
+    return _tokenizer, _model
+
+
+def run_client(
+    prompts: list[str],
+    vllm_model: str,         # ignored — kept for API compatibility
+    vllm_max_tokens: int,
+) -> list[str]:
+    """
+    Drop-in replacement for the vLLM client.
+    Runs Qwen2.5-7B-Instruct locally using HuggingFace Transformers.
+    Works on Windows — no vLLM required.
+    """
+    tokenizer, model = _load_qwen()
+    outputs = []
+
+    for prompt in prompts:
+        messages = [{"role": "user", "content": prompt}]
+
+        # Apply Qwen chat template
+        text = tokenizer.apply_chat_template(
+            messages,
+            tokenize            = False,
+            add_generation_prompt = True,
+        )
+
+        inputs = tokenizer(text, return_tensors="pt").to(model.device)
+
+        with torch.no_grad():
+            generated = model.generate(
+                **inputs,
+                max_new_tokens = vllm_max_tokens,
+                temperature    = 0.7,
+                top_p          = 0.9,
+                do_sample      = True,
+                pad_token_id   = tokenizer.eos_token_id,
+            )
+
+        # Decode only the newly generated tokens
+        new_tokens = generated[0][inputs["input_ids"].shape[1]:]
+        result     = tokenizer.decode(new_tokens, skip_special_tokens=True).strip()
+        outputs.append(result)
+    return outputs
+
+
+
+
+# Qwen needs VRAM. Free your NanoGPT and CLT from GPU first:
+
+import torch
+tl_model.cpu()
+clt_model.cpu()
+torch.cuda.empty_cache()
+print(f"VRAM available: {(torch.cuda.get_device_properties(0).total_memory - torch.cuda.memory_reserved(0)) / 1024**3:.1f} GB")
+
+
+# For GPT API (when your token arrives) — only Step 2 changes. Replace client.py with:
+
+
+autointerp.run(
+    job_id                = 0,
+    total_jobs            = 1,
+    save_dir              = Path(AUTOINTERP_DIR),
+    generate_explanations = True,    # <-- now enabled
+)
