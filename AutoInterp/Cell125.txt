@@ -1,0 +1,14 @@
+# Free GPU memory first — Qwen needs VRAM
+tl_model.cpu()
+torch.cuda.empty_cache()
+print(f"VRAM freed. Available: {(torch.cuda.get_device_properties(0).total_memory - torch.cuda.memory_reserved(0)) / 1024**3:.1f} GB")
+
+# Run AutoInterp
+autointerp.run(
+    job_id                = 0,
+    total_jobs            = 1,
+    save_dir              = Path(AUTOINTERP_DIR),
+    generate_explanations = True,
+)
+
+print(f"\nAutoInterp complete. Results saved to: {AUTOINTERP_DIR}")
