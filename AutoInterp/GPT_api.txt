@@ -1,0 +1,15 @@
+#For GPT API (when your token arrives) — only Step 2 changes. Replace client.py with:
+
+from openai import OpenAI
+
+def run_client(prompts, vllm_model, vllm_max_tokens):
+    client = OpenAI()   # reads OPENAI_API_KEY from environment
+    outputs = []
+    for prompt in prompts:
+        response = client.chat.completions.create(
+            model      = "gpt-4o-mini",   # or gpt-4o
+            messages   = [{"role": "user", "content": prompt}],
+            max_tokens = vllm_max_tokens,
+        )
+        outputs.append(response.choices[0].message.content.strip())
+    return outputs
