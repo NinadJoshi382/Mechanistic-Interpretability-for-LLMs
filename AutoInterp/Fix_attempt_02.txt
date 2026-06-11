@@ -1,0 +1,29 @@
+import torch
+
+# Calculate state tensor memory before allocating
+top_k    = 20
+F        = N_EMBD * 80        # 10,240 features
+n_layers = N_LAYER             # 4
+ctx      = CONTEXT_SIZE        # 64
+dtype    = torch.float32
+bytes_per_element = 4          # float32
+
+# Three state tensors per layer: top_vals, top_tokens, top_acts
+top_vals_gb   = (top_k * F * bytes_per_element * n_layers)   / 1024**3
+top_tokens_gb = (top_k * F * ctx * 4 * n_layers)             / 1024**3  # int32
+top_acts_gb   = (top_k * F * ctx * bytes_per_element * n_layers) / 1024**3
+
+total_state_gb = top_vals_gb + top_tokens_gb + top_acts_gb
+
+print(f"top_vals   : {top_vals_gb:.2f} GB")
+print(f"top_tokens : {top_tokens_gb:.2f} GB")
+print(f"top_acts   : {top_acts_gb:.2f} GB")
+print(f"Total state: {total_state_gb:.2f} GB")
+
+# Current VRAM usage
+reserved = torch.cuda.memory_reserved(0) / 1024**3
+total    = torch.cuda.get_device_properties(0).total_memory / 1024**3
+print(f"\nVRAM currently reserved : {reserved:.1f} GB")
+print(f"VRAM total              : {total:.1f} GB")
+print(f"VRAM after state alloc  : {reserved + total_state_gb:.1f} GB")
+print(f"Will OOM                : {reserved + total_state_gb > total}")
