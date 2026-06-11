@@ -4,6 +4,11 @@
         job_id: int,
         save_dir: Optional[Path] = None,
     ) -> None:
+        """
+        Generate LLM explanations for already-saved parquet features.
+        Call this after run(..., generate_explanations=False) has completed.
+        No model forward passes — only reads saved parquet and calls the LLM.
+        """
         if save_dir is None:
             if self.cfg.latent_cache_path is None:
                 raise ValueError(
@@ -16,10 +21,15 @@
 
         for layer in range(n_layers):
             rows = load_features_parquet(save_dir, layer=layer)
-            layer_dict = {str(r["feature_index"]): r for r in rows}
+            layer_dict = {}
+            for r in rows:
+                # parquet stores as feature_id but internal code expects feature_index
+                r["feature_index"] = r["feature_id"]
+                layer_dict[str(r["feature_index"])] = r
             feature_dicts_by_layer.append(layer_dict)
+            logger.info(f"[Job {job_id}] Layer {layer}: loaded {len(layer_dict)} features.")
 
-        logger.info(f"[Job {job_id}] Loaded features for {n_layers} layers.")
+        logger.info(f"[Job {job_id}] Generating LLM explanations on saved features...")
         self._generate_and_add_explanations(
             feature_dicts_by_layer=feature_dicts_by_layer,
             job_id=job_id,
