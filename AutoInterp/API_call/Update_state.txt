@@ -1,0 +1,29 @@
+tokens_cpu_int = tokens_seq.to(dtype=torch.int32)   # already on CPU
+L = int(acts_seq.shape[2])
+F = int(acts_seq.shape[3])
+ctx = int(acts_seq.shape[1])
+
+# Broadcast token sequence across all F features: [B_seq, F, ctx]
+batch_tokens = tokens_cpu_int[:, None, :].expand(B_seq, F, ctx).contiguous()
+
+for layer in range(L):
+    # Move this batch's results to CPU immediately — small transfer, no crash
+    batch_acts = acts_seq[:, :, layer, :].permute(0, 2, 1).contiguous().cpu()
+    batch_vals = batch_acts.max(dim=2).values   # [B_seq, F] on CPU
+
+    # Running stats
+    pos = batch_vals > 0
+    state["sum_pos"][layer].add_((batch_vals * pos).sum(dim=0))
+    state["count_pos"][layer].add_(pos.sum(dim=0))
+
+    # Merge with current top-K — everything on CPU
+    merged_vals   = torch.cat([state["top_vals"][layer],   batch_vals  ], dim=0)
+    merged_tokens = torch.cat([state["top_tokens"][layer], batch_tokens], dim=0)
+    merged_acts   = torch.cat([state["top_acts"][layer],   batch_acts  ], dim=0)
+
+    new_vals, sel = torch.topk(merged_vals, k=top_k, dim=0)
+    gather_idx = sel[:, :, None].expand(top_k, F, ctx)
+
+    state["top_vals"][layer]   = new_vals
+    state["top_tokens"][layer] = torch.gather(merged_tokens, 0, gather_idx)
+    state["top_acts"][layer]   = torch.gather(merged_acts,   0, gather_idx)
