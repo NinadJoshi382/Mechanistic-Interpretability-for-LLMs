@@ -11,9 +11,6 @@
                 )
             save_dir = Path(self.cfg.latent_cache_path)
 
-        # load_features_parquet requires a layer argument and returns
-        # a flat list of feature dicts for that layer.
-        # We rebuild feature_dicts_by_layer as a list of dicts keyed by feature_id.
         n_layers = self.clt.N_layers
         feature_dicts_by_layer = []
 
