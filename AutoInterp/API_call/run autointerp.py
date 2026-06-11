@@ -1,21 +1,14 @@
 """
 run_autointerp.py
-
-C:\path\to\python.exe run_autointerp.py --mode stream 2>&1 | Tee-Object -FilePath autointerp_log.txt
-
 -----------------
-Standalone script to run AutoInterp outside Jupyter.
-Runs in two modes:
-    python run_autointerp.py --mode stream       # Step 1: find top examples
-    python run_autointerp.py --mode explain      # Step 2: generate LLM descriptions
-    python run_autointerp.py --mode both         # Both steps together (needs more VRAM)
+Standalone AutoInterp script — run in terminal, NOT in Jupyter.
 
 Usage:
-    1. Fill in the CONFIG section below
-    2. Open a terminal in your project folder
-    3. Activate your Python environment
-    4. Run: python run_autointerp.py --mode stream
-    5. Then: python run_autointerp.py --mode explain
+    python run_autointerp.py --mode stream     # Step 1: find top activating examples
+    python run_autointerp.py --mode explain    # Step 2: generate LLM descriptions
+    python run_autointerp.py --mode both       # Both steps back to back
+
+Fill in the CONFIG section before running.
 """
 
 import argparse
@@ -23,37 +16,79 @@ import gc
 import os
 import pickle
 import sys
+import traceback
 from pathlib import Path
 
-import torch
-from transformer_lens import HookedTransformer, HookedTransformerConfig
+# ── STEP 1: confirm script is alive ──────────────────────────────────────────
+print("=" * 60)
+print("run_autointerp.py — starting")
+print(f"Python executable : {sys.executable}")
+print(f"Python version    : {sys.version}")
+print(f"Working directory : {os.getcwd()}")
+print("=" * 60)
+sys.stdout.flush()
+
+# ── STEP 2: import torch ─────────────────────────────────────────────────────
+print("Importing torch...", end=" ")
+sys.stdout.flush()
+try:
+    import torch
+    print(f"OK  (version {torch.__version__})")
+    DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
+    print(f"Device : {DEVICE}")
+    if DEVICE == "cuda":
+        print(f"GPU    : {torch.cuda.get_device_name(0)}")
+        print(f"VRAM   : {torch.cuda.get_device_properties(0).total_memory / 1024**3:.1f} GB")
+except Exception as e:
+    print(f"FAILED\n{e}")
+    sys.exit(1)
+sys.stdout.flush()
+
+# ── STEP 3: import transformer_lens ──────────────────────────────────────────
+print("Importing transformer_lens...", end=" ")
+sys.stdout.flush()
+try:
+    from transformer_lens import HookedTransformer, HookedTransformerConfig
+    print("OK")
+except Exception as e:
+    print(f"FAILED\n{e}")
+    sys.exit(1)
+sys.stdout.flush()
+
+# ── STEP 4: import clt_forge ─────────────────────────────────────────────────
+print("Importing clt_forge...", end=" ")
+sys.stdout.flush()
+try:
+    from clt_forge.autointerp.pipeline import AutoInterp
+    from clt_forge.config import AutoInterpConfig
+    print("OK")
+except Exception as e:
+    print(f"FAILED\n{e}")
+    print("Make sure CLT-Forge is installed: pip install -e /path/to/CLT-Forge")
+    sys.exit(1)
+sys.stdout.flush()
+
+print("All imports OK")
+print("=" * 60)
+sys.stdout.flush()
 
 # ── CONFIG — fill these in ────────────────────────────────────────────────────
-NANOGPT_CKPT_PATH   = "out/ckpt.pt"                        # your NanoGPT checkpoint
-CLT_CKPT_PATH       = "./clt_checkpoints/final_5001216"    # your CLT checkpoint dir
-CACHED_ACTIVATIONS  = "./cached_activations"               # cached activations dir
-AUTOINTERP_DIR      = "./autointerp_results"               # where to save results
-DATASET_PATH        = "./hf_arrow_dataset"                 # your Arrow dataset path
-DISK                = True                                 # True = local dataset
+NANOGPT_CKPT_PATH   = "out/ckpt.pt"
+CLT_CKPT_PATH       = "./clt_checkpoints/final_5001216"
+AUTOINTERP_DIR      = "./autointerp_results"
+DATASET_PATH        = "./hf_arrow_dataset"
+DISK                = True
 
-# CLT training hyperparameters — must match what you trained with
-EXPANSION_FACTOR    = 80
 CONTEXT_SIZE        = 64
+TOTAL_TOKENS        = 50_000       # keep small for first test
+TOPK                = 5
 
-# Streaming settings
-TOTAL_TOKENS        = 200_000    # reduce to 50_000 for a quick test
-TOPK                = 5          # top K examples per feature
-
-# LLM settings (only used in --mode explain or --mode both)
-VLLM_MODEL          = "gpt-4o"   # label only — actual LLM set in client.py
+VLLM_MODEL          = "gpt-4o"     # label only — set actual LLM in client.py
 VLLM_MAX_TOKENS     = 200
-
-DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 # ─────────────────────────────────────────────────────────────────────────────
 
 
 def convert_nanogpt_weights(sd, cfg):
-    """Convert NanoGPT state dict to TransformerLens format."""
     tl = {}
     d  = cfg.d_model
     nh = cfg.n_heads
@@ -63,14 +98,12 @@ def convert_nanogpt_weights(sd, cfg):
     tl["pos_embed.W_pos"] = sd["transformer.wpe.weight"]
     tl["ln_final.w"]      = sd["transformer.ln_f.weight"]
     tl["ln_final.b"]      = sd.get("transformer.ln_f.bias", torch.zeros(d))
-
     lm_w = sd.get("lm_head.weight", sd["transformer.wte.weight"])
     tl["unembed.W_U"] = lm_w.T
     tl["unembed.b_U"] = torch.zeros(cfg.d_vocab)
 
     for L in range(cfg.n_layers):
         p = f"transformer.h.{L}"
-
         tl[f"blocks.{L}.ln1.w"] = sd[f"{p}.ln_1.weight"]
         tl[f"blocks.{L}.ln1.b"] = sd.get(f"{p}.ln_1.bias", torch.zeros(d))
 
@@ -95,19 +128,24 @@ def convert_nanogpt_weights(sd, cfg):
         tl[f"blocks.{L}.ln2.b"] = sd.get(f"{p}.ln_2.bias", torch.zeros(d))
 
         tl[f"blocks.{L}.mlp.W_in"]  = sd[f"{p}.mlp.c_fc.weight"].T
-        tl[f"blocks.{L}.mlp.b_in"]  = sd.get(f"{p}.mlp.c_fc.bias",   torch.zeros(cfg.d_mlp))
+        tl[f"blocks.{L}.mlp.b_in"]  = sd.get(f"{p}.mlp.c_fc.bias", torch.zeros(cfg.d_mlp))
         tl[f"blocks.{L}.mlp.W_out"] = sd[f"{p}.mlp.c_proj.weight"].T
         tl[f"blocks.{L}.mlp.b_out"] = sd.get(f"{p}.mlp.c_proj.bias", torch.zeros(d))
 
     return tl
 
 
-def load_nanogpt(ckpt_path, device):
-    """Load NanoGPT checkpoint and convert to HookedTransformer."""
-    print(f"Loading NanoGPT from: {ckpt_path}")
-    checkpoint = torch.load(ckpt_path, map_location="cpu", weights_only=False)
+def load_nanogpt():
+    print(f"\nLoading NanoGPT from: {NANOGPT_CKPT_PATH}")
+    sys.stdout.flush()
 
+    if not os.path.exists(NANOGPT_CKPT_PATH):
+        raise FileNotFoundError(f"Checkpoint not found: {NANOGPT_CKPT_PATH}")
+
+    checkpoint = torch.load(NANOGPT_CKPT_PATH, map_location="cpu", weights_only=False)
     model_args = checkpoint["model_args"]
+    print(f"model_args: {model_args}")
+
     n_layer    = model_args["n_layer"]
     n_head     = model_args["n_head"]
     n_embd     = model_args["n_embd"]
@@ -127,9 +165,11 @@ def load_nanogpt(ckpt_path, device):
             meta = pickle.load(f)
         vocab_size        = meta["vocab_size"]
         tl_tokenizer_name = None
+        print(f"Custom vocab: {vocab_size} tokens")
     else:
         vocab_size        = model_args.get("vocab_size", 50304)
         tl_tokenizer_name = "gpt2"
+        print(f"GPT-2 BPE tokeniser, vocab size: {vocab_size}")
 
     tl_cfg = HookedTransformerConfig(
         n_layers           = n_layer,
@@ -146,26 +186,36 @@ def load_nanogpt(ckpt_path, device):
         attn_only          = False,
     )
 
+    print("Converting weights...", end=" ")
+    sys.stdout.flush()
     tl_state_dict = convert_nanogpt_weights(raw_sd, tl_cfg)
-    tl_model      = HookedTransformer(tl_cfg)
-    tl_model.load_state_dict(tl_state_dict, strict=False)
-    tl_model.eval().to(device)
-    for p in tl_model.parameters():
-        p.requires_grad_(False)
+    print("OK")
 
-    print(f"NanoGPT loaded | layers={n_layer}, n_embd={n_embd}, vocab={vocab_size}")
-    return tl_model, n_layer, n_embd, vocab_size, tl_tokenizer_name
+    print(f"Building HookedTransformer...", end=" ")
+    sys.stdout.flush()
+    tl_model = HookedTransformer(tl_cfg)
+    tl_model.load_state_dict(tl_state_dict, strict=False)
+    tl_model.eval().to(DEVICE)
+    for param in tl_model.parameters():
+        param.requires_grad_(False)
+    print(f"OK  (on {DEVICE})")
+
+    print(f"NanoGPT ready | n_layer={n_layer}, n_embd={n_embd}, vocab={vocab_size}")
+    sys.stdout.flush()
+    return tl_model, n_layer, n_embd
 
 
 def run_streaming(tl_model, n_layer, n_embd):
-    """Run streaming — find top activating examples for each CLT feature."""
-    from clt_forge.autointerp.pipeline import AutoInterp
-    from clt_forge.config import AutoInterpConfig
+    print("\n" + "=" * 60)
+    print("STEP: STREAMING")
+    print(f"  Dataset        : {DATASET_PATH}")
+    print(f"  Total tokens   : {TOTAL_TOKENS:,}")
+    print(f"  Top-K          : {TOPK}")
+    print(f"  Save to        : {AUTOINTERP_DIR}")
+    print("=" * 60)
+    sys.stdout.flush()
 
-    print("\n--- STREAMING ---")
-    print(f"Total tokens    : {TOTAL_TOKENS:,}")
-    print(f"Top-K examples  : {TOPK}")
-    print(f"Device          : {DEVICE}")
+    os.makedirs(AUTOINTERP_DIR, exist_ok=True)
 
     cfg = AutoInterpConfig(
         device                   = DEVICE,
@@ -187,32 +237,47 @@ def run_streaming(tl_model, n_layer, n_embd):
         vllm_model               = VLLM_MODEL,
         vllm_max_tokens          = VLLM_MAX_TOKENS,
     )
-    cfg._pretrained_model = tl_model.to(DEVICE)
+    cfg._pretrained_model = tl_model
 
+    print("Initialising AutoInterp...", end=" ")
+    sys.stdout.flush()
     autointerp = AutoInterp(cfg)
+    print("OK")
+    sys.stdout.flush()
+
+    print("Running streaming...")
+    sys.stdout.flush()
     autointerp.run(
         job_id                = 0,
         total_jobs            = 1,
         save_dir              = Path(AUTOINTERP_DIR),
         generate_explanations = False,
     )
-    print("Streaming complete. Parquet saved.")
+    print("\nStreaming complete. Parquet saved to:", AUTOINTERP_DIR)
+    sys.stdout.flush()
 
 
 def run_explanations():
-    """Run LLM explanations on already-saved parquet files."""
-    from clt_forge.autointerp.pipeline import AutoInterp
-    from clt_forge.config import AutoInterpConfig
+    print("\n" + "=" * 60)
+    print("STEP: EXPLANATIONS")
+    print(f"  Reading parquet from : {AUTOINTERP_DIR}")
+    print(f"  LLM model            : {VLLM_MODEL}")
+    print("=" * 60)
+    sys.stdout.flush()
 
-    print("\n--- EXPLANATIONS ---")
-    print("Reading saved parquet and calling LLM...")
+    # Check parquet files exist before doing anything
+    parquet_dir = Path(AUTOINTERP_DIR) / "parquet"
+    if not parquet_dir.exists() or not list(parquet_dir.glob("*.parquet")):
+        raise FileNotFoundError(
+            f"No parquet files found in {parquet_dir}. "
+            "Run --mode stream first."
+        )
 
-    # Minimal config for explanations — no model needed
     cfg = AutoInterpConfig(
         device                   = DEVICE,
         dtype                    = "float32",
         model_name               = "gpt2",
-        n_layers                 = 4,           # not used during explain-only
+        n_layers                 = 4,
         d_in                     = None,
         use_pretrained_model     = True,
         clt_path                 = CLT_CKPT_PATH,
@@ -229,15 +294,29 @@ def run_explanations():
         vllm_max_tokens          = VLLM_MAX_TOKENS,
     )
 
-    # Pass a dummy pretrained model flag — not used for explain-only
-    cfg._pretrained_model = None
+    # For explain-only we need a minimal model just for the tokeniser
+    # Load on CPU — no forward passes happen during explanation
+    print("Loading NanoGPT on CPU for tokeniser...", end=" ")
+    sys.stdout.flush()
+    tl_model, _, _ = load_nanogpt()
+    tl_model.cpu()
+    cfg._pretrained_model = tl_model
+    print("OK")
+    sys.stdout.flush()
 
+    print("Initialising AutoInterp...", end=" ")
+    sys.stdout.flush()
     autointerp = AutoInterp(cfg)
+    print("OK")
+
+    print("Generating explanations via LLM...")
+    sys.stdout.flush()
     autointerp.run_explanations_only(
         job_id   = 0,
         save_dir = Path(AUTOINTERP_DIR),
     )
     print("Explanations complete.")
+    sys.stdout.flush()
 
 
 def main():
@@ -246,27 +325,19 @@ def main():
         "--mode",
         choices=["stream", "explain", "both"],
         required=True,
-        help="stream = find top examples | explain = generate LLM descriptions | both = run together"
+        help="stream | explain | both"
     )
     args = parser.parse_args()
 
-    print(f"Mode   : {args.mode}")
-    print(f"Device : {DEVICE}")
-    if DEVICE == "cuda":
-        print(f"GPU    : {torch.cuda.get_device_name(0)}")
-        print(f"VRAM   : {torch.cuda.get_device_properties(0).total_memory / 1024**3:.1f} GB")
-
-    os.makedirs(AUTOINTERP_DIR, exist_ok=True)
+    print(f"\nMode: {args.mode}")
+    sys.stdout.flush()
 
     if args.mode in ("stream", "both"):
-        tl_model, n_layer, n_embd, vocab_size, tl_tokenizer_name = load_nanogpt(
-            NANOGPT_CKPT_PATH, DEVICE
-        )
+        tl_model, n_layer, n_embd = load_nanogpt()
         run_streaming(tl_model, n_layer, n_embd)
 
         if args.mode == "both":
-            # Free GPU before loading LLM
-            print("\nFreeing GPU memory before loading LLM...")
+            print("\nFreeing GPU before LLM...")
             tl_model.cpu()
             del tl_model
             gc.collect()
@@ -274,32 +345,33 @@ def main():
             free_gb = (torch.cuda.get_device_properties(0).total_memory
                        - torch.cuda.memory_reserved(0)) / 1024**3
             print(f"VRAM free: {free_gb:.1f} GB")
+            sys.stdout.flush()
             run_explanations()
 
     elif args.mode == "explain":
         run_explanations()
 
-    print("\nDone.")
+    print("\n" + "=" * 60)
+    print("ALL DONE")
+    print("=" * 60)
 
 
-# BEFORE — replace this
 if __name__ == "__main__":
-    main()
-
-# AFTER — replace with this
-if __name__ == "__main__":
-    import traceback
-    log_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "autointerp_crash_log.txt")
     try:
         main()
+    except KeyboardInterrupt:
+        print("\nInterrupted by user.")
+        sys.exit(0)
     except Exception as e:
-        error_msg = traceback.format_exc()
-        print(f"\n{'='*60}")
-        print(f"CRASH after {e}")
-        print(error_msg)
-        print(f"{'='*60}")
-        with open(log_path, "w") as f:
+        print("\n" + "=" * 60)
+        print("CRASH — full traceback:")
+        print("=" * 60)
+        traceback.print_exc()
+        # Save crash log
+        crash_log = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                 "autointerp_crash_log.txt")
+        with open(crash_log, "w") as f:
             f.write(f"Error: {e}\n\n")
-            f.write(error_msg)
-        print(f"Full error saved to: {log_path}")
+            traceback.print_exc(file=f)
+        print(f"\nCrash log saved to: {crash_log}")
         sys.exit(1)
