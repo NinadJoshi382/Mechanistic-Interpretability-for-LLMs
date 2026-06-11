@@ -279,5 +279,24 @@ def main():
     print("\nDone.")
 
 
+# BEFORE — replace this
 if __name__ == "__main__":
     main()
+
+# AFTER — replace with this
+if __name__ == "__main__":
+    import traceback
+    log_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "autointerp_crash_log.txt")
+    try:
+        main()
+    except Exception as e:
+        error_msg = traceback.format_exc()
+        print(f"\n{'='*60}")
+        print(f"CRASH after {e}")
+        print(error_msg)
+        print(f"{'='*60}")
+        with open(log_path, "w") as f:
+            f.write(f"Error: {e}\n\n")
+            f.write(error_msg)
+        print(f"Full error saved to: {log_path}")
+        sys.exit(1)
