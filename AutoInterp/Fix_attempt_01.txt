@@ -1,3 +1,46 @@
+from clt_forge.autointerp.pipeline import AutoInterp
+from clt_forge.config import AutoInterpConfig
+from pathlib import Path
+
+autointerp_cfg = AutoInterpConfig(
+    # System
+    device                   = DEVICE,
+    dtype                    = "float32",
+
+    # Model — use your already-loaded tl_model, skip load_model("gpt2")
+    model_name               = TL_TOKENIZER_NAME or "gpt2",
+    n_layers                 = N_LAYER,          # 4
+    d_in                     = N_EMBD,           # 128
+    use_pretrained_model     = True,
+
+    # CLT
+    clt_path                 = BEST_CHECKPOINT,
+
+    # Dataset
+    dataset_path             = DATASET_PATH,
+    disk                     = DISK,
+    context_size             = CONTEXT_SIZE,     # 64
+
+    # Streaming settings
+    total_autointerp_tokens  = 200_000,          # reduce if slow
+    train_batch_size_tokens  = 2048,
+    n_batches_in_buffer      = 20,
+    store_batch_size_prompts = 32,
+    latent_cache_path        = AUTOINTERP_DIR,
+    topk                     = 20,               # top 20 examples per feature
+
+    # LLM — not used for streaming, but field must exist
+    vllm_model               = "Qwen/Qwen2.5-7B-Instruct",
+    vllm_max_tokens          = 200,
+)
+
+# Attach your already-loaded tl_model — bypasses load_model("gpt2") entirely
+autointerp_cfg._pretrained_model = tl_model.to(DEVICE)
+
+autointerp = AutoInterp(autointerp_cfg)
+print("AutoInterp initialised — ready for streaming.")
+
+
 # Make sure tl_model is on GPU for streaming
 tl_model.to(DEVICE)
 autointerp_cfg._pretrained_model = tl_model
