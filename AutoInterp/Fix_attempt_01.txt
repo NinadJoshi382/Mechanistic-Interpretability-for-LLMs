@@ -1,0 +1,90 @@
+# Make sure tl_model is on GPU for streaming
+tl_model.to(DEVICE)
+autointerp_cfg._pretrained_model = tl_model
+
+autointerp = AutoInterp(autointerp_cfg)
+
+autointerp.run(
+    job_id                = 0,
+    total_jobs            = 1,
+    save_dir              = Path(AUTOINTERP_DIR),
+    generate_explanations = False,    # streaming only — no Qwen
+)
+print("Streaming done. Parquet saved.")
+
+
+import gc, torch
+
+# Move everything off GPU
+tl_model.cpu()
+clt_model.cpu()
+
+# Delete the autointerp object — it holds references to tl_model and CLT
+del autointerp
+
+gc.collect()
+torch.cuda.empty_cache()
+torch.cuda.synchronize()
+
+free_gb = (torch.cuda.get_device_properties(0).total_memory
+           - torch.cuda.memory_reserved(0)) / 1024**3
+print(f"VRAM free: {free_gb:.1f} GB")
+# Should be close to 80GB before proceeding
+
+
+
+from clt_forge.autointerp.pipeline import AutoInterp
+from clt_forge.config import AutoInterpConfig
+from pathlib import Path
+
+# Rebuild AutoInterp config — no model needed this time
+autointerp_cfg_exp = AutoInterpConfig(
+    device                   = DEVICE,
+    model_name               = TL_TOKENIZER_NAME or "gpt2",
+    n_layers                 = N_LAYER,
+    d_in                     = N_EMBD,
+    use_pretrained_model     = True,
+    clt_path                 = BEST_CHECKPOINT,
+    latent_cache_path        = AUTOINTERP_DIR,
+    dataset_path             = DATASET_PATH,
+    disk                     = DISK,
+    context_size             = CONTEXT_SIZE,
+    total_autointerp_tokens  = 200_000,
+    train_batch_size_tokens  = 2048,
+    n_batches_in_buffer      = 20,
+    store_batch_size_prompts = 32,
+    vllm_model               = "Qwen/Qwen2.5-7B-Instruct",
+    vllm_max_tokens          = 200,
+)
+
+# Pass a CPU model — explanations only needs the tokeniser, not forward passes
+autointerp_cfg_exp._pretrained_model = tl_model   # already on CPU
+
+autointerp_exp = AutoInterp(autointerp_cfg_exp)
+
+# Run explanations on the already-saved parquet
+autointerp_exp.run_explanations_only(
+    job_id   = 0,
+    save_dir = Path(AUTOINTERP_DIR),
+)
+print("Explanations complete.")
+
+
+import pandas as pd, glob, json
+
+parquet_files = sorted(glob.glob(f"{AUTOINTERP_DIR}/parquet/*.parquet"))
+df = pd.read_parquet(parquet_files[0])
+
+print(f"Total features : {len(df)}")
+print(f"Columns        : {list(df.columns)}\n")
+
+# Show top 10 most active features
+for _, row in df.sort_values("average_activation", ascending=False).head(10).iterrows():
+    examples = json.loads(row["top_examples"]) if isinstance(row["top_examples"], str) else row["top_examples"]
+    print(f"Layer {row['layer']} | Feature {row['feature_id']}")
+    print(f"  Avg activation : {row['average_activation']:.4f}")
+    print(f"  Description    : {row['description']}")
+    print(f"  Explanation    : {row['explanation']}")
+    print(f"  Top example    : {examples[0] if examples else 'None'}")
+    print()
+
