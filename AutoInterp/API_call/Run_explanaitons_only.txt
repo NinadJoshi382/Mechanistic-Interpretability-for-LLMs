@@ -1,16 +1,9 @@
-        logger.info(f"[Job {job_id}] Done.")
-
     def run_explanations_only(
         self,
         *,
         job_id: int,
         save_dir: Optional[Path] = None,
     ) -> None:
-        """
-        Generate LLM explanations for already-saved parquet features.
-        Call this after run(..., generate_explanations=False) has completed.
-        No model forward passes — only reads saved parquet and calls the LLM.
-        """
         if save_dir is None:
             if self.cfg.latent_cache_path is None:
                 raise ValueError(
@@ -18,13 +11,21 @@
                 )
             save_dir = Path(self.cfg.latent_cache_path)
 
-        feature_dicts_by_layer = load_features_parquet(save_dir)
-        logger.info(f"[Job {job_id}] Generating LLM explanations on saved features...")
+        # load_features_parquet requires a layer argument and returns
+        # a flat list of feature dicts for that layer.
+        # We rebuild feature_dicts_by_layer as a list of dicts keyed by feature_id.
+        n_layers = self.clt.N_layers
+        feature_dicts_by_layer = []
+
+        for layer in range(n_layers):
+            rows = load_features_parquet(save_dir, layer=layer)
+            layer_dict = {str(r["feature_index"]): r for r in rows}
+            feature_dicts_by_layer.append(layer_dict)
+
+        logger.info(f"[Job {job_id}] Loaded features for {n_layers} layers.")
         self._generate_and_add_explanations(
             feature_dicts_by_layer=feature_dicts_by_layer,
             job_id=job_id,
             save_dir=save_dir,
         )
         logger.info(f"[Job {job_id}] Explanations done.")
-
-    def _compute_index_list(self, job_id: int, total_jobs: int) -> List[int]:
