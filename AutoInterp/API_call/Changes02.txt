@@ -1,0 +1,43 @@
+autointerp_cfg = AutoInterpConfig(
+    device                   = "cpu",
+    dtype                    = "float32",
+    model_name               = TL_TOKENIZER_NAME or "gpt2",
+    n_layers                 = N_LAYER,
+    d_in                     = N_EMBD,
+    use_pretrained_model     = True,
+    clt_path                 = BEST_CHECKPOINT,
+    dataset_path             = DATASET_PATH,
+    disk                     = DISK,
+    context_size             = CONTEXT_SIZE,
+    total_autointerp_tokens  = 50_000,
+    train_batch_size_tokens  = 2048,
+    n_batches_in_buffer      = 20,
+    store_batch_size_prompts = 32,
+    latent_cache_path        = AUTOINTERP_DIR,
+    topk                     = 5,
+    vllm_model               = "gpt-4o",       # label only — ignored by client.py
+    vllm_max_tokens          = 200,
+)
+autointerp_cfg._pretrained_model = tl_model.cpu()
+
+
+
+
+# Cell A — Streaming only (CPU, no crash)
+autointerp = AutoInterp(autointerp_cfg)
+autointerp.run(
+    job_id                = 0,
+    total_jobs            = 1,
+    save_dir              = Path(AUTOINTERP_DIR),
+    generate_explanations = False,
+)
+print("Streaming done.")
+
+
+# Cell B — Explanations via Azure API (no local model, no crash)
+# Run this only after Cell A completes successfully
+autointerp.run_explanations_only(
+    job_id   = 0,
+    save_dir = Path(AUTOINTERP_DIR),
+)
+print("Explanations done.")
