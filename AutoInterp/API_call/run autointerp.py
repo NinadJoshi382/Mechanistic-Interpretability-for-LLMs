@@ -1,5 +1,8 @@
 """
 run_autointerp.py
+
+C:\path\to\python.exe run_autointerp.py --mode stream 2>&1 | Tee-Object -FilePath autointerp_log.txt
+
 -----------------
 Standalone script to run AutoInterp outside Jupyter.
 Runs in two modes:
