@@ -1,0 +1,52 @@
+    # Load NanoGPT and convert to HookedTransformer
+    print("Loading NanoGPT...", end=" ")
+    sys.stdout.flush()
+    try:
+        import pickle
+        from transformer_lens import HookedTransformer, HookedTransformerConfig
+        from run_autointerp import convert_nanogpt_weights
+
+        checkpoint = torch.load(NANOGPT_CKPT_PATH, map_location="cpu", weights_only=False)
+        model_args = checkpoint["model_args"]
+        n_layer    = model_args["n_layer"]
+        n_head     = model_args["n_head"]
+        n_embd     = model_args["n_embd"]
+        block_size = model_args["block_size"]
+
+        raw_sd = checkpoint["model"]
+        raw_sd = {(k[len("_orig_mod."):] if k.startswith("_orig_mod.") else k): v
+                  for k, v in raw_sd.items()}
+        raw_sd = {(k[len("module."):] if k.startswith("module.") else k): v
+                  for k, v in raw_sd.items()}
+
+        dataset   = checkpoint.get("config", {}).get("dataset", None)
+        meta_path = os.path.join("data", dataset, "meta.pkl") if dataset else None
+        if meta_path and os.path.exists(meta_path):
+            with open(meta_path, "rb") as f:
+                meta = pickle.load(f)
+            vocab_size        = meta["vocab_size"]
+            tl_tokenizer_name = None
+        else:
+            vocab_size        = model_args.get("vocab_size", 50304)
+            tl_tokenizer_name = "gpt2"
+
+        tl_cfg = HookedTransformerConfig(
+            n_layers=n_layer, d_model=n_embd, n_heads=n_head,
+            d_head=n_embd//n_head, d_mlp=4*n_embd, n_ctx=block_size,
+            d_vocab=vocab_size, act_fn="gelu_new", normalization_type="LN",
+            tokenizer_name=tl_tokenizer_name, device="cpu", attn_only=False,
+        )
+        tl_state_dict = convert_nanogpt_weights(raw_sd, tl_cfg)
+        tl_model = HookedTransformer(tl_cfg)
+        tl_model.load_state_dict(tl_state_dict, strict=False)
+        tl_model.eval().to(DEVICE)
+        for p in tl_model.parameters():
+            p.requires_grad_(False)
+        print(f"OK  (n_layer={n_layer}, n_embd={n_embd})")
+    except Exception as e:
+        print(f"FAILED\n{e}")
+        traceback.print_exc()
+        sys.exit(1)
+    sys.stdout.flush()
+
+    print("Initialising AttributionRunner (loading CLT + model)...")
