@@ -1,0 +1,30 @@
+    def __init__(
+        self,
+        clt_checkpoint: str,
+        model_name: str = "gpt2",
+        device: str = "cuda",
+        debug: bool = False,
+    ):
+
+
+    def __init__(
+        self,
+        clt_checkpoint: str,
+        model_name: str = "gpt2",
+        device: str = "cuda",
+        debug: bool = False,
+        hooked_transformer = None,     # <-- add this line
+    ):
+
+
+        self.log("Loading model...")
+        if hooked_transformer is not None:
+            self.model = ReplacementModel.from_hooked_transformer_and_transcoders(
+                hooked_transformer = hooked_transformer,
+                transcoders        = self.clt,
+            )
+        else:
+            self.model = ReplacementModel.from_pretrained_and_transcoders(
+                model_name = model_name,
+                transcoders= self.clt,
+            )
