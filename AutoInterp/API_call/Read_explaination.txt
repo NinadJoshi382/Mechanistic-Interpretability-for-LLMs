@@ -1,0 +1,10 @@
+import pandas as pd, glob, json
+
+parquet_files = sorted(glob.glob("autointerp_results/parquet/*.parquet"))
+df = pd.read_parquet(parquet_files[0])
+
+for _, row in df.sort_values("average_activation", ascending=False).head(10).iterrows():
+    print(f"Layer {row['layer']} | Feature {row['feature_id']}")
+    print(f"  Description : {row['description']}")
+    print(f"  Explanation : {row['explanation']}")
+    print()
