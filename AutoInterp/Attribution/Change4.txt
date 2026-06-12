@@ -1,0 +1,7 @@
+        runner = AttributionRunner(
+            clt_checkpoint    = CLT_CKPT_PATH,
+            model_name        = MODEL_NAME,
+            device            = DEVICE,
+            debug             = args.debug_attr,
+            hooked_transformer= tl_model,      # <-- add this line
+        )
